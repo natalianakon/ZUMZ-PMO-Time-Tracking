@@ -1,0 +1,433 @@
+{
+  "version": "1.0",
+  "savedAt": "2026-03-17T18:59:17.373Z",
+  "entries": [
+    {
+      "person": "member3",
+      "date": "2026-03-09",
+      "project": "xtwsld",
+      "workType": "Admin / Other",
+      "bigIdea": "",
+      "hours": 16,
+      "notes": "ZHOT Teacher Prep",
+      "id": "7nlnup",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "xtwsld",
+      "workType": "Personal Development",
+      "bigIdea": "",
+      "hours": 4,
+      "notes": "Self Eval + Manager Eval",
+      "id": "6ccw51",
+      "weekEntry": true
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-12",
+      "project": "1ua0rk",
+      "workType": "Meetings",
+      "bigIdea": "",
+      "hours": 1.5,
+      "notes": "",
+      "id": "ffc9og"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-12",
+      "project": "xtwsld",
+      "workType": "Personal Development",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "Self Eval & Manager Eval",
+      "id": "6tpeqe"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-12",
+      "project": "teobb2",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 3,
+      "notes": "",
+      "id": "ef74tw"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-13",
+      "project": "1ua0rk",
+      "workType": "Stakeholder Communication",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "3ps1l2"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-13",
+      "project": "1ua0rk",
+      "workType": "Meetings",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "",
+      "id": "782tyi"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-13",
+      "project": "teobb2",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 3,
+      "notes": "",
+      "id": "b4vrlj"
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "zhs1ug",
+      "workType": "Stakeholder Communication",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "524f5u",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "zhs1ug",
+      "workType": "Documentation",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "xl8dqs",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "zhs1ug",
+      "workType": "Meetings",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "1rmrom",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "xylwzi",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "8g3xyo",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "xylwzi",
+      "workType": "Stakeholder Communication",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "acoixv",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "xylwzi",
+      "workType": "Documentation",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "",
+      "id": "8gtthx",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "xylwzi",
+      "workType": "Meetings",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "",
+      "id": "jb2m5g",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "rtwgmw",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "nu2pdr",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "eomnwz",
+      "workType": "Stakeholder Communication",
+      "bigIdea": "",
+      "hours": 1.5,
+      "notes": "",
+      "id": "ujh686",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "eomnwz",
+      "workType": "Documentation",
+      "bigIdea": "",
+      "hours": 2.5,
+      "notes": "",
+      "id": "cvouy4",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-09",
+      "project": "eomnwz",
+      "workType": "Meetings",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "",
+      "id": "0x8idq",
+      "weekEntry": true
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-11",
+      "project": "1ua0rk",
+      "workType": "Project Work",
+      "bigIdea": "3hif37",
+      "hours": 4,
+      "notes": "",
+      "id": "5yah6i"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-11",
+      "project": "teobb2",
+      "workType": "Project Work",
+      "bigIdea": "3hif37",
+      "hours": 6,
+      "notes": "",
+      "id": "y0jeok"
+    }
+  ],
+  "projects": [
+    {
+      "name": "PMO Time Tracking Tool",
+      "color": "#F05A22",
+      "status": "Active",
+      "pm": "natalia",
+      "startDate": "2026-03-03",
+      "endDate": "2026-06-11",
+      "description": "",
+      "priority": "Low",
+      "sponsor": "Paul Kisicki, Quin Tuckman",
+      "id": "teobb2",
+      "bigIdeas": [],
+      "estimatedHours": "80"
+    },
+    {
+      "name": "Fluent HQ - SWARM",
+      "color": "#F05A22",
+      "status": "Active",
+      "pm": "natalia",
+      "startDate": "2026-03-03",
+      "endDate": "2026-03-24",
+      "description": "",
+      "priority": "High",
+      "sponsor": "Greg Zeck",
+      "id": "1ua0rk",
+      "bigIdeas": []
+    },
+    {
+      "name": "Customer Consent - DSAR",
+      "color": "#0E8A7E",
+      "status": "Active",
+      "pm": "member2",
+      "startDate": "2025-12-01",
+      "endDate": "2026-07-01",
+      "description": "",
+      "priority": "High",
+      "sponsor": "Stuart Martin",
+      "id": "eomnwz",
+      "bigIdeas": []
+    },
+    {
+      "name": "Customer Consent - Cookies",
+      "color": "#0E8A7E",
+      "status": "Active",
+      "pm": "member2",
+      "startDate": "2025-08-01",
+      "endDate": "2026-04-01",
+      "description": "",
+      "priority": "Medium",
+      "sponsor": "Stuart Martin",
+      "id": "rtwgmw",
+      "bigIdeas": []
+    },
+    {
+      "name": "Multiple Wishlists (App + Web)",
+      "color": "#0E8A7E",
+      "status": "Complete",
+      "pm": "member2",
+      "startDate": "2025-08-01",
+      "endDate": "2026-01-01",
+      "description": "",
+      "priority": "Medium",
+      "sponsor": "Michelle Eten",
+      "id": "6gon30",
+      "bigIdeas": []
+    },
+    {
+      "name": "Wishlist Reporting",
+      "color": "#0E8A7E",
+      "status": "Complete",
+      "pm": "member2",
+      "startDate": "2025-09-01",
+      "endDate": "2026-01-01",
+      "description": "",
+      "priority": "Medium",
+      "sponsor": "Michelle Eten",
+      "id": "fbmnjo",
+      "bigIdeas": []
+    },
+    {
+      "name": "BTS App Store - App Exclusive Products",
+      "color": "#0E8A7E",
+      "status": "Active",
+      "pm": "member2",
+      "startDate": "2026-01-01",
+      "endDate": "2026-05-01",
+      "description": "",
+      "priority": "High",
+      "sponsor": "Michelle Eten",
+      "id": "jlpft6",
+      "bigIdeas": []
+    },
+    {
+      "name": "BTS App Store - App Check-Out",
+      "color": "#0E8A7E",
+      "status": "Active",
+      "pm": "member2",
+      "startDate": "2026-01-01",
+      "endDate": "2026-04-30",
+      "description": "",
+      "priority": "High",
+      "sponsor": "Michelle Eten",
+      "id": "xylwzi",
+      "bigIdeas": []
+    },
+    {
+      "name": "BTS App Store - App Channel Sales Tracking",
+      "color": "#0E8A7E",
+      "status": "Active",
+      "pm": "member2",
+      "startDate": "2026-01-01",
+      "endDate": "2026-05-01",
+      "description": "",
+      "priority": "Medium",
+      "sponsor": "Michelle Eten",
+      "id": "gsy530",
+      "bigIdeas": []
+    },
+    {
+      "name": "Digital - Accessibility",
+      "color": "#0E8A7E",
+      "status": "Active",
+      "pm": "member2",
+      "startDate": "2026-01-01",
+      "endDate": "",
+      "description": "",
+      "priority": "Medium",
+      "sponsor": "Michelle Eten",
+      "id": "zhs1ug",
+      "bigIdeas": []
+    },
+    {
+      "name": "Mid Atlantic Corridor",
+      "color": "#6366F1",
+      "status": "Active",
+      "pm": "member3",
+      "startDate": "",
+      "endDate": "",
+      "description": "",
+      "priority": "High",
+      "sponsor": "",
+      "id": "nkdl0r",
+      "bigIdeas": []
+    },
+    {
+      "name": "App Store Strategy + Roadmapping",
+      "color": "#6366F1",
+      "status": "Active",
+      "pm": "member3",
+      "startDate": "",
+      "endDate": "",
+      "description": "",
+      "priority": "High",
+      "sponsor": "Stuart Martin",
+      "id": "xow9de",
+      "bigIdeas": []
+    },
+    {
+      "name": "PMO Admin + Development",
+      "color": "#1E3A52",
+      "status": "Active",
+      "pm": "",
+      "startDate": "",
+      "endDate": "",
+      "description": "",
+      "priority": "Medium",
+      "sponsor": "",
+      "id": "xtwsld",
+      "bigIdeas": []
+    }
+  ],
+  "globalIdeas": [
+    {
+      "id": "sijxko",
+      "title": "Platform - Data",
+      "notes": ""
+    },
+    {
+      "id": "7fz9fv",
+      "title": "Platform - DTG",
+      "notes": ""
+    },
+    {
+      "id": "4v8aom",
+      "title": "Trade Area",
+      "notes": ""
+    },
+    {
+      "id": "xhn2ip",
+      "title": "Hatch",
+      "notes": ""
+    },
+    {
+      "id": "7xahjv",
+      "title": "Customer Data",
+      "notes": ""
+    },
+    {
+      "id": "3hif37",
+      "title": "N/A - Other",
+      "notes": ""
+    }
+  ]
+}

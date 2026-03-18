@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Vite build output
+dist/
+
+# Local backups
+data/*-backup-*.json
+pmo-time-tracker-20*.jsx
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
