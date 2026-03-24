@@ -1,7 +1,37 @@
 {
   "version": "1.0",
-  "savedAt": "2026-03-24T16:59:58.928Z",
+  "savedAt": "2026-03-24T20:43:34.003Z",
   "entries": [
+    {
+      "person": "natalia",
+      "date": "2026-03-23",
+      "project": "xtwsld",
+      "workType": "Personal Development",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "",
+      "id": "nm2t80"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-23",
+      "project": "1ua0rk",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "cvsk98"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-23",
+      "project": "1ua0rk",
+      "workType": "Meetings",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "wye5ak"
+    },
     {
       "person": "member2",
       "date": "2026-03-16",
@@ -389,7 +419,7 @@
     {
       "name": "Customer Consent - Cookies",
       "color": "#0E8A7E",
-      "status": "Active",
+      "status": "Complete",
       "pm": "member2",
       "startDate": "2025-08-01",
       "endDate": "2026-04-01",
@@ -397,7 +427,8 @@
       "priority": "Medium",
       "sponsor": "Stuart Martin",
       "id": "rtwgmw",
-      "bigIdeas": []
+      "bigIdeas": [],
+      "estimatedHours": ""
     },
     {
       "name": "Multiple Wishlists (App + Web)",
