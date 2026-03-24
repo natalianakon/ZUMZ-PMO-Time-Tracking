@@ -18,7 +18,7 @@ const TEAM = [
   { id: "member2", name: "Cara", role: "PMO Project Manager", color: T.teal },
   { id: "member3", name: "Quin", role: "PMO Manager", color: T.purple },
 ];
-const WORK_TYPES = ["Project Work","Big Idea Planning","Project Lifecycle","Stakeholder Communication","Documentation","Meetings","Risk & Issues","Reporting","Admin / Other","Personal Development"];
+const WORK_TYPES = ["Project Work","Intake","Big Idea Planning","Project Lifecycle","Stakeholder Communication","Documentation","Meetings","Risk & Issues","Reporting","Admin / Other","Personal Development"];
 const CAPACITY_TARGET_PCT = 0.70;
 const WORK_WEEK_H = 40;
 const CAPACITY_TARGET_H = Math.round(WORK_WEEK_H * CAPACITY_TARGET_PCT); // 28
@@ -61,6 +61,7 @@ function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return d
 function getMondayOf(dateStr) { const d = new Date(dateStr + "T12:00:00"); const dow = d.getDay(); d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow)); return d.toISOString().slice(0, 10); }
 function getWeekDays(mondayStr) { return ["Mon","Tue","Wed","Thu","Fri"].map((lbl,i) => { const d = new Date(mondayStr + "T12:00:00"); d.setDate(d.getDate() + i); return { label: lbl, date: d.toISOString().slice(0, 10) }; }); }
 function getWeekStart() { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return d.toISOString().slice(0, 10); }
+function getLastWeekStart() { const d = new Date(getWeekStart() + "T12:00:00"); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10); }
 function getMonthStart() { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1).toISOString().slice(0, 10); }
 function fmtH(h) {
   if (!h && h !== 0) return "—";
@@ -98,7 +99,8 @@ function Pill({ label, color, small }) {
   return <span style={{display:"inline-flex",alignItems:"center",padding:small?"2px 7px":"4px 10px",borderRadius:99,background:color+"22",border:`1px solid ${color}44`,fontSize:small?10.5:12,fontWeight:700,color,whiteSpace:"nowrap"}}>{label}</span>;
 }
 
-function StatTile({ label, value, sub, accent, delta, deltaPositive }) {
+function StatTile({ label, value, sub, accent, delta, deltaPositive, progress }) {
+  const barColor = progress == null ? null : progress >= 100 ? T.success : progress >= 70 ? T.orange : T.navy;
   return (
     <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"20px 22px",position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:accent||T.orange,borderRadius:"12px 12px 0 0"}}/>
@@ -108,6 +110,11 @@ function StatTile({ label, value, sub, accent, delta, deltaPositive }) {
       {delta && (
         <div style={{marginTop:6,fontSize:10.5,fontWeight:700,color:deltaPositive?T.success:"#EF4444"}}>
           {delta}
+        </div>
+      )}
+      {progress != null && (
+        <div style={{marginTop:10,height:4,background:T.border,borderRadius:99,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${Math.min(progress,100)}%`,background:barColor,borderRadius:99,transition:"width 0.4s ease"}}/>
         </div>
       )}
     </div>
@@ -126,13 +133,15 @@ const TTip = ({ active, payload, label }) => {
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ entries, projects, globalIdeas }) {
-  const [range, setRange] = useState("week");
+  const [range, setRange] = useState("month");
   const [showDigest, setShowDigest] = useState(false);
   const pMap = useMemo(() => Object.fromEntries(projects.map(p => [p.id, p])), [projects]);
 
   const filtered = useMemo(() => {
-    const cut = range==="week" ? getWeekStart() : range==="month" ? getMonthStart() : "2000-01-01";
-    return entries.filter(e => e.date >= cut);
+    if (range === "week") return entries.filter(e => e.date >= getWeekStart());
+    if (range === "lastweek") { const ws = getWeekStart(), lws = getLastWeekStart(); return entries.filter(e => e.date >= lws && e.date < ws); }
+    if (range === "month") return entries.filter(e => e.date >= getMonthStart());
+    return entries.filter(e => e.date >= "2000-01-01");
   }, [entries, range]);
 
   const totalH = filtered.reduce((s, e) => s + e.hours, 0);
@@ -171,6 +180,17 @@ function Dashboard({ entries, projects, globalIdeas }) {
     if (diff === 0) return null;
     return `${diff>0?"+":""}${diff} vs last wk`;
   }
+
+  // ── Period capacity target ─────────────────────────────────────────────────
+  const periodTarget = useMemo(() => {
+    if (range === "week" || range === "lastweek") return CAPACITY_TARGET_H * TEAM.length;
+    if (range === "month") {
+      const dayOfMonth = new Date().getDate();
+      return Math.round((dayOfMonth / 7) * CAPACITY_TARGET_H * TEAM.length);
+    }
+    return null;
+  }, [range]);
+  const perPersonTarget = periodTarget != null ? periodTarget / TEAM.length : null;
 
   // ── At-risk projects ───────────────────────────────────────────────────────
   const atRisk = projects.filter(p => {
@@ -227,7 +247,7 @@ function Dashboard({ entries, projects, globalIdeas }) {
       <div style={{display:"flex",gap:6,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <span style={{fontSize:11,color:T.muted,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",marginRight:4}}>Period:</span>
-          {[{v:"week",l:"This Week"},{v:"month",l:"This Month"},{v:"all",l:"All Time"}].map(r => (
+          {[{v:"week",l:"This Week"},{v:"lastweek",l:"Last Week"},{v:"month",l:"Month to Date"},{v:"all",l:"All Time"}].map(r => (
             <button key={r.v} onClick={()=>setRange(r.v)} style={{padding:"7px 18px",borderRadius:7,border:`1.5px solid ${range===r.v?T.navy:T.border}`,background:range===r.v?T.navy:"transparent",color:range===r.v?T.white:T.muted,cursor:"pointer",fontSize:12.5,fontWeight:600}}>
               {r.l}
             </button>
@@ -238,12 +258,19 @@ function Dashboard({ entries, projects, globalIdeas }) {
         </button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
-        <StatTile label="Total Hours" value={fmtH(totalH)} sub={`${filtered.length} entries`} accent={T.navy}
+        <StatTile label="Team Hours" value={fmtH(totalH)}
+          sub={periodTarget ? `of ${fmtH(periodTarget)} target · ${Math.round((totalH/periodTarget)*100)}%` : `${filtered.length} entries`}
+          accent={T.navy} progress={periodTarget ? (totalH/periodTarget)*100 : null}
           delta={range==="week"?wowDeltaH():null} deltaPositive={thisWeekH>=prevWeekH}/>
-        <StatTile label="Avg / Active Day" value={days?fmtH(totalH/days):"—"} sub={`across ${days} days`} accent={T.orange}/>
-        <StatTile label="Active Projects" value={byProject.length} sub={`of ${projects.length} total`} accent={T.teal}
+        <StatTile label="Per Person" value={fmtH(totalH/TEAM.length)}
+          sub={perPersonTarget ? `of ${fmtH(perPersonTarget)} target · ${Math.round((totalH/TEAM.length/perPersonTarget)*100)}%` : `avg across ${TEAM.length} people`}
+          accent={T.orange} progress={perPersonTarget ? (totalH/TEAM.length/perPersonTarget)*100 : null}/>
+        <StatTile label="Active Projects" value={byProject.length}
+          sub={`of ${projects.filter(p=>p.status==="Active").length} active projects`} accent={T.teal}
           delta={range==="week"?wowDeltaN(thisWeekProjs,prevWeekProjs):null} deltaPositive={thisWeekProjs>=prevWeekProjs}/>
-        <StatTile label="Contributors" value={byPerson.filter(p=>p.hours>0).length} sub="team members" accent={T.purple}
+        <StatTile label="Contributors" value={`${byPerson.filter(p=>p.hours>0).length} / ${TEAM.length}`}
+          sub="team members logged" accent={T.purple}
+          progress={(byPerson.filter(p=>p.hours>0).length/TEAM.length)*100}
           delta={range==="week"?wowDeltaN(thisWeekContrib,prevWeekContrib):null} deltaPositive={thisWeekContrib>=prevWeekContrib}/>
       </div>
       {atRisk.length > 0 && (
@@ -299,33 +326,38 @@ function Dashboard({ entries, projects, globalIdeas }) {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"22px 24px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-            <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted}}>Team Capacity — This Week</div>
-            <div style={{fontSize:10,color:T.muted}}>Target: {CAPACITY_TARGET_H}h / person</div>
-          </div>
-          {TEAM.map(t => {
-            const wkH = entries.filter(e=>e.person===t.id&&e.date>=getWeekStart()).reduce((s,e)=>s+e.hours,0);
-            const capPct = Math.min(Math.round((wkH/CAPACITY_TARGET_H)*100),100);
-            const atCap = wkH >= CAPACITY_TARGET_H;
-            const barColor = atCap ? "#EF4444" : T.success;
-            return (
-              <div key={t.id} style={{marginBottom:16}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:13,fontWeight:600,color:T.text}}>{t.name.split(" ")[0]}</span>
-                    <span style={{padding:"2px 8px",borderRadius:99,background:(atCap?"#EF4444":T.success)+"18",border:`1px solid ${(atCap?"#EF4444":T.success)}44`,fontSize:9.5,fontWeight:700,color:atCap?"#EF4444":T.success}}>
-                      {atCap?"At Capacity":"Open for Work"}
-                    </span>
-                  </div>
-                  <span style={{fontSize:12,color:T.muted}}>{fmtH(wkH)} <span style={{color:barColor,fontWeight:700}}>/ {CAPACITY_TARGET_H}h</span></span>
-                </div>
-                <div style={{height:8,background:T.cream,borderRadius:4,overflow:"hidden",border:`1px solid ${T.border}`}}>
-                  <div style={{width:`${capPct}%`,height:"100%",background:barColor,borderRadius:4,transition:"width 0.4s ease"}}/>
-                </div>
-                <div style={{fontSize:10,color:T.muted,marginTop:3}}>{capPct}% of weekly target</div>
+          {(() => {
+            const mtdTarget = Math.round((new Date().getDate() / 7) * CAPACITY_TARGET_H);
+            return (<>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted}}>Team Capacity — Month to Date</div>
+                <div style={{fontSize:10,color:T.muted}}>Target: {fmtH(mtdTarget)} / person</div>
               </div>
-            );
-          })}
+              {TEAM.map(t => {
+                const mtdH = entries.filter(e=>e.person===t.id&&e.date>=getMonthStart()).reduce((s,e)=>s+e.hours,0);
+                const capPct = Math.min(Math.round((mtdH/mtdTarget)*100),100);
+                const atCap = mtdH >= mtdTarget;
+                const barColor = atCap ? "#EF4444" : T.success;
+                return (
+                  <div key={t.id} style={{marginBottom:16}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontSize:13,fontWeight:600,color:T.text}}>{t.name.split(" ")[0]}</span>
+                        <span style={{padding:"2px 8px",borderRadius:99,background:(atCap?"#EF4444":T.success)+"18",border:`1px solid ${(atCap?"#EF4444":T.success)}44`,fontSize:9.5,fontWeight:700,color:atCap?"#EF4444":T.success}}>
+                          {atCap?"At Capacity":"Open for Work"}
+                        </span>
+                      </div>
+                      <span style={{fontSize:12,color:T.muted}}>{fmtH(mtdH)} <span style={{color:barColor,fontWeight:700}}>/ {fmtH(mtdTarget)}</span></span>
+                    </div>
+                    <div style={{height:8,background:T.cream,borderRadius:4,overflow:"hidden",border:`1px solid ${T.border}`}}>
+                      <div style={{width:`${capPct}%`,height:"100%",background:barColor,borderRadius:4,transition:"width 0.4s ease"}}/>
+                    </div>
+                    <div style={{fontSize:10,color:T.muted,marginTop:3}}>{capPct}% of monthly target</div>
+                  </div>
+                );
+              })}
+            </>);
+          })()}
         </div>
         <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"22px 24px"}}>
           <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted,marginBottom:14}}>Work Type Breakdown</div>

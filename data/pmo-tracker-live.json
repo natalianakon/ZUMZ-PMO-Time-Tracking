@@ -1,7 +1,126 @@
 {
   "version": "1.0",
-  "savedAt": "2026-03-19T21:21:15.893Z",
+  "savedAt": "2026-03-24T16:59:58.928Z",
   "entries": [
+    {
+      "person": "member2",
+      "date": "2026-03-16",
+      "project": "zhs1ug",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 4,
+      "notes": "",
+      "id": "hklyel",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-16",
+      "project": "jlpft6",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 10,
+      "notes": "",
+      "id": "7fm211",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-16",
+      "project": "rtwgmw",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 1.5,
+      "notes": "",
+      "id": "8q6tlh",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-16",
+      "project": "eomnwz",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 4,
+      "notes": "",
+      "id": "aklm6q",
+      "weekEntry": true
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-16",
+      "project": "1ua0rk",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "Fluent - Adobe Connector",
+      "id": "qkn8vx"
+    },
+    {
+      "person": "member2",
+      "date": "2026-03-16",
+      "project": "s5g4px",
+      "workType": "Intake",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "New App Data Process with Platform Team",
+      "id": "oa5vpv"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-16",
+      "project": "teobb2",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 6,
+      "notes": "",
+      "id": "pj3dxs",
+      "weekEntry": true
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-16",
+      "project": "1ua0rk",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 8,
+      "notes": "",
+      "id": "py0iac",
+      "weekEntry": true
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-16",
+      "project": "1ua0rk",
+      "workType": "Meetings",
+      "bigIdea": "",
+      "hours": 4,
+      "notes": "",
+      "id": "netsfl",
+      "weekEntry": true
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-16",
+      "project": "xtwsld",
+      "workType": "Admin / Other",
+      "bigIdea": "",
+      "hours": 3,
+      "notes": "QBU + KFC",
+      "id": "m7cpzr",
+      "weekEntry": true
+    },
+    {
+      "person": "natalia",
+      "date": "2026-03-16",
+      "project": "xtwsld",
+      "workType": "Personal Development",
+      "bigIdea": "",
+      "hours": 3,
+      "notes": "FY2025 Review, Claude T&L",
+      "id": "phsluj",
+      "weekEntry": true
+    },
     {
       "person": "member3",
       "date": "2026-03-09",
@@ -395,6 +514,20 @@
       "priority": "Medium",
       "sponsor": "",
       "id": "xtwsld",
+      "bigIdeas": []
+    },
+    {
+      "name": "N/A - Intake/Ideation",
+      "color": "#1E3A52",
+      "status": "Active",
+      "pm": "",
+      "startDate": "",
+      "endDate": "",
+      "description": "",
+      "priority": "Medium",
+      "sponsor": "",
+      "estimatedHours": "",
+      "id": "s5g4px",
       "bigIdeas": []
     }
   ],
