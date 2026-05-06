@@ -31,6 +31,50 @@ const PRIORITIES = ["High","Medium","Low"];
 const LOE_SIZES = ["XS","S","M","L","XL","XXL"];
 const LOE_LABELS = { XS:"< 1 week", S:"1-2 weeks", M:"2-6 weeks", L:"1-3 months", XL:"3-6 months", XXL:"6+ months" };
 
+const CHANGELOG = [
+  {
+    version: "2.0", date: "May 2026", tag: "Major Release", tagColor: T.orange,
+    whatsNew: [
+      { title: "Quick Log on Dashboard", desc: "Log time without switching tabs — inline form with quick-pick hour buttons (0.5h–4h) right on the Dashboard." },
+      { title: "Period Summary Export", desc: "📋 Summary button generates a formatted text report for the selected period. Copy it straight into Teams or email." },
+      { title: "LOE / T-Shirt Sizing on Projects", desc: "Projects now support effort sizing (XS → XXL) — visible on project cards, the edit form, and the Exec View scorecard." },
+      { title: "Notes Search in All Entries", desc: "New search bar filters across all entry notes in real time." },
+      { title: "Month Filter on Dashboard", desc: "Pick any historical month from the period selector to analyze data for that specific month." },
+      { title: "Merge Team Data", desc: "Import a teammate's JSON export and merge their entries into your live data — with project change detection built in." },
+      { title: "Release Notes (this tab)", desc: "Versioned changelog now lives inside the app. You're looking at it." },
+    ],
+    improvements: [
+      { title: "Smarter Dashboard KPIs", desc: "Per Person and Contributors tiles replaced with Productive Time %, Overhead Ratio, and Top Project — all period-aware." },
+      { title: "Work Type Breakdown shows %", desc: "Hours by work type now displays percentage alongside hours so you can see the split at a glance." },
+      { title: "Team Capacity follows selected period", desc: "Capacity bars now reflect whatever period is selected on the Dashboard, not just the current month." },
+      { title: "Exec View synced", desc: "Executive View now uses consistent work type definitions across the whole app — no more discrepancies." },
+      { title: "Import auto-loads on file select", desc: "Uploading a JSON restore file loads immediately — no extra button click needed." },
+      { title: "Export crash fixed", desc: "Backup export now works inside Claude artifacts — falls back to a copyable text box if direct download is blocked." },
+      { title: "Top Project tile wraps text", desc: "Long project names no longer get cut off in the Dashboard KPI tile." },
+      { title: "At-risk banner cleaned up", desc: "Removed misleading budget % from the attention banner — was showing inflated numbers from placeholder estimates." },
+    ],
+    removed: [
+      { title: "Pilot Tracker tab", desc: "Pilot is live and running — the dedicated tracker tab has been removed." },
+      { title: "Weekly Digest button", desc: "Replaced by the more flexible Period Summary export." },
+      { title: "Per Person toggle & Contributors tile", desc: "Removed from Dashboard — team-level view is the default." },
+      { title: "Project Lifecycle work type", desc: "Consolidated into Project Work to reduce categorization ambiguity." },
+    ],
+  },
+  {
+    version: "1.0", date: "March 2026", tag: "Pilot Launch", tagColor: T.teal,
+    whatsNew: [
+      { title: "7-tab PMO tracker", desc: "Dashboard, Log Time, All Entries, Team, Projects, Big Ideas, and Pilot Tracker — full tracking suite built and deployed." },
+      { title: "Auto-save to disk", desc: "All changes save automatically to pmo-tracker-live.json via a local file API. No manual export needed day-to-day." },
+      { title: "Big Ideas pool", desc: "Global idea bank linkable to any project entry — available across all projects with no pre-linking step." },
+      { title: "Team capacity tracking", desc: "Per-person capacity bars measured against a 70% billable target." },
+      { title: "CSV export", desc: "Export any filtered view of entries to CSV for reporting." },
+      { title: "Week-over-week comparisons", desc: "Dashboard shows week-on-week delta for hours, projects, and contributors." },
+    ],
+    improvements: [],
+    removed: [],
+  },
+];
+
 const INIT_GLOBAL_IDEAS = [
   { id: "bi001", title: "Real-time OMS sync across all store regions", notes: "Explore middleware approach for low-latency updates" },
   { id: "bi002", title: "Automated war room reconciliation via photo AI", notes: "Daily board to tracker diff without manual entry" },
@@ -2547,6 +2591,113 @@ function ExecView({ entries, projects }) {
   );
 }
 
+// ─── WHAT'S NEW ───────────────────────────────────────────────────────────────
+function WhatsNew() {
+  const [copied, setCopied] = useState(false);
+  const latest = CHANGELOG[0];
+
+  function generateReleaseNote(v) {
+    const line = "━".repeat(44);
+    const sectionHeader = (emoji, label) => `\n${emoji} ${label}`;
+    const bullets = arr => arr.map(i => `  • ${i.title} — ${i.desc}`).join("\n");
+    let out = `PMO Time Tracker — Release Notes\nv${v.version} · ${v.date}\n${line}\n`;
+    if (v.whatsNew.length) out += `${sectionHeader("🆕","WHAT'S NEW")}\n${bullets(v.whatsNew)}\n`;
+    if (v.improvements.length) out += `${sectionHeader("✨","IMPROVEMENTS")}\n${bullets(v.improvements)}\n`;
+    if (v.removed.length) out += `${sectionHeader("🗑","REMOVED")}\n${bullets(v.removed)}\n`;
+    out += `\n${line}\nHOW TO GET v${v.version}\n${line}\n`;
+    out += `  1. Ask Natalia for the latest .jsx file and .json data file\n`;
+    out += `  2. Go to claude.ai and start a new chat\n`;
+    out += `  3. Upload the .jsx file and type: "Render this React component as an artifact"\n`;
+    out += `  4. Once rendered, click ↑ Restore and upload the .json file Natalia sent\n`;
+    out += `  5. You're in — all your team's data will be loaded\n`;
+    out += `${line}\nQuestions? Ping Natalia.`;
+    return out;
+  }
+
+  function copyLatest() {
+    navigator.clipboard.writeText(generateReleaseNote(latest));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  }
+
+  const SectionBlock = ({ emoji, label, items, accentColor }) => {
+    if (!items.length) return null;
+    return (
+      <div style={{marginBottom:24}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+          <span style={{fontSize:16}}>{emoji}</span>
+          <span style={{fontSize:11,fontWeight:800,letterSpacing:"0.09em",textTransform:"uppercase",color:accentColor}}>{label}</span>
+        </div>
+        <div style={{display:"grid",gap:8}}>
+          {items.map((item,i) => (
+            <div key={i} style={{display:"grid",gridTemplateColumns:"4px 1fr",gap:14,alignItems:"start"}}>
+              <div style={{width:4,height:"100%",minHeight:18,background:accentColor,borderRadius:2,marginTop:3}}/>
+              <div>
+                <span style={{fontSize:13,fontWeight:700,color:T.navy}}>{item.title}</span>
+                <span style={{fontSize:12.5,color:T.muted}}> — {item.desc}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{display:"grid",gap:20}}>
+      {/* Header + Copy button */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
+        <div>
+          <h2 style={{fontSize:18,fontWeight:800,color:T.navy,marginBottom:3}}>Release Notes</h2>
+          <p style={{fontSize:12.5,color:T.muted}}>What's changed in each version of the PMO Time Tracker</p>
+        </div>
+        <button onClick={copyLatest}
+          style={{padding:"10px 20px",background:copied?T.success:T.navy,border:"none",borderRadius:8,color:T.white,cursor:"pointer",fontSize:13,fontWeight:700,transition:"background 0.2s"}}>
+          {copied ? "✓ Copied!" : `📋 Copy v${latest.version} Release Note`}
+        </button>
+      </div>
+
+      {/* Changelog entries */}
+      {CHANGELOG.map((v, vi) => (
+        <div key={v.version} style={{background:T.white,border:`1.5px solid ${vi===0?v.tagColor+"55":T.border}`,borderRadius:12,overflow:"hidden"}}>
+          {/* Version header */}
+          <div style={{background:vi===0?`linear-gradient(135deg,${T.navy} 0%,${T.navyLight} 100%)`:T.cream,padding:"20px 28px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+                <span style={{fontSize:22,fontWeight:900,color:vi===0?T.white:T.navy,letterSpacing:"-0.02em"}}>v{v.version}</span>
+                <span style={{padding:"3px 10px",borderRadius:99,background:v.tagColor,color:T.white,fontSize:10,fontWeight:800,letterSpacing:"0.06em",textTransform:"uppercase"}}>{v.tag}</span>
+              </div>
+              <div style={{fontSize:12,color:vi===0?"rgba(255,255,255,0.5)":T.muted,fontWeight:600}}>{v.date}</div>
+            </div>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+              {v.whatsNew.length>0&&<div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:vi===0?T.orange:T.navy}}>{v.whatsNew.length}</div><div style={{fontSize:9.5,color:vi===0?"rgba(255,255,255,0.4)":T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em"}}>New</div></div>}
+              {v.improvements.length>0&&<div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:vi===0?T.tealLight:T.teal}}>{v.improvements.length}</div><div style={{fontSize:9.5,color:vi===0?"rgba(255,255,255,0.4)":T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em"}}>Improved</div></div>}
+              {v.removed.length>0&&<div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:vi===0?"#FC8181":"#EF4444"}}>{v.removed.length}</div><div style={{fontSize:9.5,color:vi===0?"rgba(255,255,255,0.4)":T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em"}}>Removed</div></div>}
+            </div>
+          </div>
+          {/* Sections */}
+          <div style={{padding:"24px 28px"}}>
+            <SectionBlock emoji="🆕" label="What's New" items={v.whatsNew} accentColor={T.orange}/>
+            <SectionBlock emoji="✨" label="Improvements" items={v.improvements} accentColor={T.teal}/>
+            <SectionBlock emoji="🗑" label="Removed" items={v.removed} accentColor={T.muted}/>
+            {vi===0&&(
+              <div style={{marginTop:16,padding:"16px 20px",background:T.cream,borderRadius:9,border:`1px solid ${T.border}`}}>
+                <div style={{fontSize:10,fontWeight:800,letterSpacing:"0.09em",textTransform:"uppercase",color:T.muted,marginBottom:10}}>How to get v{v.version}</div>
+                {["Ask Natalia for the latest .jsx file and .json data file","Go to claude.ai and start a new chat","Upload the .jsx file and type: \"Render this React component as an artifact\"","Once rendered, click ↑ Restore and upload the .json file Natalia sent","You're in — all your team's data will be loaded"].map((step,i)=>(
+                  <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:i<4?8:0}}>
+                    <div style={{width:20,height:20,borderRadius:"50%",background:T.navy,color:T.white,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>{i+1}</div>
+                    <span style={{fontSize:12.5,color:T.text,lineHeight:1.5}}>{step}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── APP SHELL ────────────────────────────────────────────────────────────────
 const TABS = [
   {id:"dashboard",label:"Dashboard",icon:"◈"},
@@ -2557,6 +2708,7 @@ const TABS = [
   {id:"bigideas",label:"Big Ideas",icon:"💡"},
   {id:"capacity",label:"Capacity",icon:"⚡"},
   {id:"exec",label:"Exec View",icon:"📊"},
+  {id:"whatsnew",label:"What's New",icon:"★"},
 ];
 
 export default function App() {
@@ -2836,6 +2988,7 @@ export default function App() {
           {tab==="bigideas" && <BigIdeasTab globalIdeas={globalIdeas} setGlobalIdeas={setGlobalIdeas} projects={projects} entries={entries}/>}
           {tab==="capacity" && <CapacityForecasting entries={entries}/>}
           {tab==="exec" && <ExecView entries={entries} projects={projects}/>}
+          {tab==="whatsnew" && <WhatsNew/>}
         </div>
       </div>
 

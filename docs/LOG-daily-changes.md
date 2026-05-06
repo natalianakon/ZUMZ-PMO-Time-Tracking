@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-05-06
+
+- **What's New tab** — New `★ What's New` tab added with full versioned changelog (v1.0 pilot launch + v2.0 major release)
+- **Release note generator** — `📋 Copy v2.0 Release Note` button generates formatted text report (What's New / Improvements / Removed + How to get this version instructions) and copies to clipboard
+- **CHANGELOG constant** — Structured release data added as a module-level constant for easy future version additions
+
+---
+
 ## 2026-05-05
 
 - **StatTile** — Added `valueTruncate={false}` prop; long project names (Top Project tile) now wrap instead of overflowing at 30px font
