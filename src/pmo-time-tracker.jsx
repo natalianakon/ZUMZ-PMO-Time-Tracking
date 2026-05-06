@@ -18,7 +18,9 @@ const TEAM = [
   { id: "member2", name: "Cara", role: "PMO Project Manager", color: T.teal },
   { id: "member3", name: "Quin", role: "PMO Manager", color: T.purple },
 ];
-const WORK_TYPES = ["Project Work","Intake","Big Idea Planning","Project Lifecycle","Stakeholder Communication","Documentation","Meetings","Risk & Issues","Reporting","Admin / Other","Personal Development"];
+const WORK_TYPES = ["Project Work","Intake","Big Idea Planning","Stakeholder Communication","Documentation","Meetings","Risk & Issues","Reporting","Admin / Other","Personal Development"];
+const PRODUCTIVE_TYPES = ["Project Work","Intake","Stakeholder Communication","Big Idea Planning"];
+const OVERHEAD_TYPES   = ["Meetings","Admin / Other","Reporting","Risk & Issues","Documentation"];
 const CAPACITY_TARGET_PCT = 0.70;
 const WORK_WEEK_H = 40;
 const CAPACITY_TARGET_H = Math.round(WORK_WEEK_H * CAPACITY_TARGET_PCT); // 28
@@ -26,6 +28,8 @@ const STATUSES = ["Active","On Hold","Complete","Planned"];
 const PROJ_COLORS = [T.orange, T.teal, T.purple, T.warn, "#EC4899", T.success, "#6366F1", T.navyLight];
 
 const PRIORITIES = ["High","Medium","Low"];
+const LOE_SIZES = ["XS","S","M","L","XL","XXL"];
+const LOE_LABELS = { XS:"< 1 week", S:"1-2 weeks", M:"2-6 weeks", L:"1-3 months", XL:"3-6 months", XXL:"6+ months" };
 
 const INIT_GLOBAL_IDEAS = [
   { id: "bi001", title: "Real-time OMS sync across all store regions", notes: "Explore middleware approach for low-latency updates" },
@@ -99,13 +103,13 @@ function Pill({ label, color, small }) {
   return <span style={{display:"inline-flex",alignItems:"center",padding:small?"2px 7px":"4px 10px",borderRadius:99,background:color+"22",border:`1px solid ${color}44`,fontSize:small?10.5:12,fontWeight:700,color,whiteSpace:"nowrap"}}>{label}</span>;
 }
 
-function StatTile({ label, value, sub, accent, delta, deltaPositive, progress }) {
+function StatTile({ label, value, sub, accent, delta, deltaPositive, progress, valueTruncate = true }) {
   const barColor = progress == null ? null : progress >= 100 ? T.success : progress >= 70 ? T.orange : T.navy;
   return (
     <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"20px 22px",position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:accent||T.orange,borderRadius:"12px 12px 0 0"}}/>
       <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.09em",textTransform:"uppercase",color:T.muted,marginBottom:8}}>{label}</div>
-      <div style={{fontSize:30,fontWeight:800,color:T.navy,lineHeight:1,letterSpacing:"-0.02em"}}>{value}</div>
+      <div style={{fontSize: valueTruncate ? 30 : 18,fontWeight:800,color:T.navy,lineHeight: valueTruncate ? 1 : 1.2,letterSpacing:"-0.02em",wordBreak: valueTruncate ? "normal" : "break-word",whiteSpace: valueTruncate ? "nowrap" : "normal",overflow: valueTruncate ? "hidden" : "visible",textOverflow: valueTruncate ? "ellipsis" : "clip"}}>{value}</div>
       {sub && <div style={{fontSize:11.5,color:T.muted,marginTop:6}}>{sub}</div>}
       {delta && (
         <div style={{marginTop:6,fontSize:10.5,fontWeight:700,color:deltaPositive?T.success:"#EF4444"}}>
@@ -132,22 +136,60 @@ const TTip = ({ active, payload, label }) => {
 };
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ entries, projects, globalIdeas }) {
+function Dashboard({ entries, projects, globalIdeas, setEntries }) {
   const [range, setRange] = useState("month");
+  const [selectedMonth, setSelectedMonth] = useState(""); // "YYYY-MM"
   const [showDigest, setShowDigest] = useState(false);
+  const [showQL, setShowQL] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [qlForm, setQlForm] = useState({ person:"natalia", date:today(), project:"", workType:"", hours:"", notes:"" });
+  const [qlErrors, setQlErrors] = useState({});
+  const [qlFlash, setQlFlash] = useState(false);
+  function qlSet(k,v){ setQlForm(f=>({...f,[k]:v})); setQlErrors(e=>({...e,[k]:""})); }
+  function qlSubmit(){
+    const e={};
+    if(!qlForm.person) e.person="Required";
+    if(!qlForm.project) e.project="Required";
+    if(!qlForm.workType) e.workType="Required";
+    const h=parseFloat(qlForm.hours);
+    if(!qlForm.hours||isNaN(h)||h<=0||h>24) e.hours="Enter 0.25–24";
+    if(Object.keys(e).length){setQlErrors(e);return;}
+    setEntries(p=>[{...qlForm,hours:h,id:uid()},...p]);
+    setQlFlash(true);
+    setQlForm(f=>({...f,project:"",workType:"",hours:"",notes:""}));
+    setTimeout(()=>setQlFlash(false),2500);
+  }
   const pMap = useMemo(() => Object.fromEntries(projects.map(p => [p.id, p])), [projects]);
+
+  // Unique months with data, newest first
+  const availableMonths = useMemo(() => {
+    const months = [...new Set(entries.map(e => e.date.slice(0, 7)))].sort().reverse();
+    return months.map(m => {
+      const [y, mo] = m.split("-");
+      const label = new Date(parseInt(y), parseInt(mo) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      return { value: m, label };
+    });
+  }, [entries]);
 
   const filtered = useMemo(() => {
     if (range === "week") return entries.filter(e => e.date >= getWeekStart());
     if (range === "lastweek") { const ws = getWeekStart(), lws = getLastWeekStart(); return entries.filter(e => e.date >= lws && e.date < ws); }
     if (range === "month") return entries.filter(e => e.date >= getMonthStart());
+    if (range === "specificMonth" && selectedMonth) return entries.filter(e => e.date.startsWith(selectedMonth));
     return entries.filter(e => e.date >= "2000-01-01");
-  }, [entries, range]);
+  }, [entries, range, selectedMonth]);
 
   const totalH = filtered.reduce((s, e) => s + e.hours, 0);
   const days = [...new Set(filtered.map(e => e.date))].length;
   const byPerson = TEAM.map(t => ({ name:t.name.split(" ")[0], hours:filtered.filter(e=>e.person===t.id).reduce((s,e)=>s+e.hours,0), color:t.color }));
   const byProject = projects.map(p => ({ name:p.name.length>16?p.name.slice(0,14)+"…":p.name, hours:filtered.filter(e=>e.project===p.id).reduce((s,e)=>s+e.hours,0), color:p.color })).filter(p=>p.hours>0).sort((a,b)=>b.hours-a.hours);
+
+  // ── New KPI metrics ───────────────────────────────────────────────────────
+  const productiveH = filtered.filter(e=>PRODUCTIVE_TYPES.includes(e.workType)).reduce((s,e)=>s+e.hours,0);
+  const overheadH   = filtered.filter(e=>OVERHEAD_TYPES.includes(e.workType)).reduce((s,e)=>s+e.hours,0);
+  const productivePct = totalH > 0 ? Math.round((productiveH/totalH)*100) : 0;
+  const overheadPct   = totalH > 0 ? Math.round((overheadH/totalH)*100)   : 0;
+  const topProject    = byProject[0] || null;
   const TYPE_COLORS = [T.orange,T.teal,T.purple,T.warn,T.tealLight,"#EC4899",T.orangeLight,"#6366F1",T.success,"#14B8A6"];
   const byType = WORK_TYPES.map((wt,i) => ({ name:wt, value:filtered.filter(e=>e.workType===wt).reduce((s,e)=>s+e.hours,0), color:TYPE_COLORS[i%10] })).filter(t=>t.value>0);
   const trend = Array.from({length:7},(_,i) => {
@@ -188,8 +230,12 @@ function Dashboard({ entries, projects, globalIdeas }) {
       const dayOfMonth = new Date().getDate();
       return Math.round((dayOfMonth / 7) * CAPACITY_TARGET_H * TEAM.length);
     }
+    if (range === "specificMonth" && selectedMonth) {
+      // Full month target
+      return Math.round((4.33) * CAPACITY_TARGET_H * TEAM.length);
+    }
     return null;
-  }, [range]);
+  }, [range, selectedMonth]);
   const perPersonTarget = periodTarget != null ? periodTarget / TEAM.length : null;
 
   // ── At-risk projects ───────────────────────────────────────────────────────
@@ -242,43 +288,154 @@ function Dashboard({ entries, projects, globalIdeas }) {
     return `${header}\n${teamSection}${projSection}${typeSection}${notesSection}`;
   }
 
+  function generateSummary() {
+    if (!filtered.length) return "No entries for this period.";
+    const rangeLabels = { week:"This Week", lastweek:"Last Week", month:"Month to Date", all:"All Time", specificMonth:"" };
+    let periodLabel = rangeLabels[range] || "";
+    if (range === "specificMonth" && selectedMonth) {
+      const [y,mo] = selectedMonth.split("-");
+      periodLabel = new Date(parseInt(y),parseInt(mo)-1,1).toLocaleDateString("en-US",{month:"long",year:"numeric"});
+    }
+    const totalSH = filtered.reduce((s,e)=>s+e.hours,0);
+    const prodH = filtered.filter(e=>PRODUCTIVE_TYPES.includes(e.workType)).reduce((s,e)=>s+e.hours,0);
+    const ovhH  = filtered.filter(e=>OVERHEAD_TYPES.includes(e.workType)).reduce((s,e)=>s+e.hours,0);
+    const prodPct = totalSH>0?Math.round((prodH/totalSH)*100):0;
+    const header = `📋 PMO Summary — ${periodLabel}\nGenerated: ${new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}\n`;
+    const kpi = `KEY METRICS\n${"─".repeat(42)}\n  Total Hours      ${fmtH(totalSH).padStart(8)}\n  Productive Time  ${(prodPct+"%").padStart(8)}  (${fmtH(prodH)})\n  Overhead         ${(totalSH>0?Math.round((ovhH/totalSH)*100)+"%":"—").padStart(8)}  (${fmtH(ovhH)})\n`;
+    const teamLines = TEAM.map(t => {
+      const h = filtered.filter(e=>e.person===t.id).reduce((s,e)=>s+e.hours,0);
+      const pct = totalSH>0?Math.round((h/totalSH)*100):0;
+      if (!h) return null;
+      return `  ${t.name.split(" ")[0].padEnd(14)}${fmtH(h).padStart(6)}  ${pct}%`;
+    }).filter(Boolean);
+    const teamSection = teamLines.length ? `\nHOURS BY PERSON\n${"─".repeat(42)}\n${teamLines.join("\n")}\n` : "";
+    const projLines = projects.map(p => {
+      const h = filtered.filter(e=>e.project===p.id).reduce((s,e)=>s+e.hours,0);
+      if (!h) return null;
+      const pct = Math.round((h/totalSH)*100);
+      return `  ${p.name.padEnd(28)}${fmtH(h).padStart(6)}  ${pct}%`;
+    }).filter(Boolean);
+    const projSection = projLines.length ? `\nHOURS BY PROJECT\n${"─".repeat(42)}\n${projLines.join("\n")}\n` : "";
+    const typeLines = WORK_TYPES.map(wt => {
+      const h = filtered.filter(e=>e.workType===wt).reduce((s,e)=>s+e.hours,0);
+      if (!h) return null;
+      const pct = Math.round((h/totalSH)*100);
+      return `  ${wt.padEnd(28)}${fmtH(h).padStart(6)}  ${pct}%`;
+    }).filter(Boolean);
+    const typeSection = typeLines.length ? `\nWORK TYPE BREAKDOWN\n${"─".repeat(42)}\n${typeLines.join("\n")}\n` : "";
+    const noteLines = filtered.filter(e=>e.notes).slice(0,15).map(e => {
+      const person = TEAM.find(t=>t.id===e.person)?.name.split(" ")[0]||e.person;
+      const proj = projects.find(p=>p.id===e.project)?.name||e.project;
+      return `  [${person} · ${proj} · ${e.date}] ${e.notes}`;
+    });
+    const notesSection = noteLines.length ? `\nNOTABLE NOTES\n${"─".repeat(42)}\n${noteLines.join("\n")}\n` : "";
+    return `${header}\n${kpi}${teamSection}${projSection}${typeSection}${notesSection}`;
+  }
+
   return (
     <div style={{display:"grid",gap:20}}>
       <div style={{display:"flex",gap:6,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
-        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
           <span style={{fontSize:11,color:T.muted,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",marginRight:4}}>Period:</span>
           {[{v:"week",l:"This Week"},{v:"lastweek",l:"Last Week"},{v:"month",l:"Month to Date"},{v:"all",l:"All Time"}].map(r => (
-            <button key={r.v} onClick={()=>setRange(r.v)} style={{padding:"7px 18px",borderRadius:7,border:`1.5px solid ${range===r.v?T.navy:T.border}`,background:range===r.v?T.navy:"transparent",color:range===r.v?T.white:T.muted,cursor:"pointer",fontSize:12.5,fontWeight:600}}>
+            <button key={r.v} onClick={()=>setRange(r.v)} style={{padding:"7px 18px",borderRadius:7,border:`1.5px solid ${range===r.v&&range!=="specificMonth"?T.navy:T.border}`,background:range===r.v&&range!=="specificMonth"?T.navy:"transparent",color:range===r.v&&range!=="specificMonth"?T.white:T.muted,cursor:"pointer",fontSize:12.5,fontWeight:600}}>
               {r.l}
             </button>
           ))}
+          <select
+            value={range === "specificMonth" ? selectedMonth : ""}
+            onChange={e => { if (e.target.value) { setSelectedMonth(e.target.value); setRange("specificMonth"); } }}
+            style={{padding:"7px 14px",borderRadius:7,border:`1.5px solid ${range==="specificMonth"?T.navy:T.border}`,background:range==="specificMonth"?T.navy:"white",color:range==="specificMonth"?T.white:T.muted,cursor:"pointer",fontSize:12.5,fontWeight:600,outline:"none"}}>
+            <option value="">📅 Pick Month…</option>
+            {availableMonths.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
         </div>
-        <button onClick={()=>setShowDigest(true)} style={{padding:"7px 18px",borderRadius:7,border:`1.5px solid ${T.navy}`,background:T.navy,color:T.white,cursor:"pointer",fontSize:12.5,fontWeight:700}}>
-          📋 Weekly Digest
-        </button>
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={()=>setShowSummary(true)} style={{padding:"7px 16px",borderRadius:7,border:`1.5px solid ${T.border}`,background:"transparent",color:T.text,cursor:"pointer",fontSize:12.5,fontWeight:700}}>
+            📋 Summary
+          </button>
+          <button onClick={()=>setShowQL(v=>!v)} style={{padding:"7px 16px",borderRadius:7,border:`1.5px solid ${showQL?T.orange:T.border}`,background:showQL?T.orange:"transparent",color:showQL?T.white:T.text,cursor:"pointer",fontSize:12.5,fontWeight:700,display:"flex",alignItems:"center",gap:5}}>
+            ✚ Quick Log
+          </button>
+        </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
-        <StatTile label="Team Hours" value={fmtH(totalH)}
-          sub={periodTarget ? `of ${fmtH(periodTarget)} target · ${Math.round((totalH/periodTarget)*100)}%` : `${filtered.length} entries`}
-          accent={T.navy} progress={periodTarget ? (totalH/periodTarget)*100 : null}
-          delta={range==="week"?wowDeltaH():null} deltaPositive={thisWeekH>=prevWeekH}/>
-        <StatTile label="Per Person" value={fmtH(totalH/TEAM.length)}
-          sub={perPersonTarget ? `of ${fmtH(perPersonTarget)} target · ${Math.round((totalH/TEAM.length/perPersonTarget)*100)}%` : `avg across ${TEAM.length} people`}
-          accent={T.orange} progress={perPersonTarget ? (totalH/TEAM.length/perPersonTarget)*100 : null}/>
-        <StatTile label="Active Projects" value={byProject.length}
-          sub={`of ${projects.filter(p=>p.status==="Active").length} active projects`} accent={T.teal}
-          delta={range==="week"?wowDeltaN(thisWeekProjs,prevWeekProjs):null} deltaPositive={thisWeekProjs>=prevWeekProjs}/>
-        <StatTile label="Contributors" value={`${byPerson.filter(p=>p.hours>0).length} / ${TEAM.length}`}
-          sub="team members logged" accent={T.purple}
-          progress={(byPerson.filter(p=>p.hours>0).length/TEAM.length)*100}
-          delta={range==="week"?wowDeltaN(thisWeekContrib,prevWeekContrib):null} deltaPositive={thisWeekContrib>=prevWeekContrib}/>
+      {showQL && (
+        <div style={{background:T.white,border:`1.5px solid ${T.orange}55`,borderRadius:12,padding:"20px 22px",display:"grid",gap:14}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{fontSize:13,fontWeight:700,color:T.navy}}>⚡ Quick Log Entry</div>
+            {qlFlash && <div style={{fontSize:12,fontWeight:700,color:T.success,background:"#D1FAE5",padding:"4px 12px",borderRadius:6}}>✓ Logged!</div>}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 90px 1fr",gap:10,alignItems:"end"}}>
+            <Field label="Person" error={qlErrors.person}>
+              <select value={qlForm.person} onChange={e=>qlSet("person",e.target.value)} style={{...INP,fontSize:12}}>
+                {TEAM.map(t=><option key={t.id} value={t.id}>{t.name.split(" ")[0]}</option>)}
+              </select>
+            </Field>
+            <Field label="Date">
+              <input type="date" value={qlForm.date} onChange={e=>qlSet("date",e.target.value)} style={{...INP,fontSize:12}}/>
+            </Field>
+            <Field label="Project" error={qlErrors.project}>
+              <select value={qlForm.project} onChange={e=>qlSet("project",e.target.value)} style={{...INP,fontSize:12}}>
+                <option value="">Select…</option>
+                {projects.filter(p=>p.status==="Active").map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Work Type" error={qlErrors.workType}>
+              <select value={qlForm.workType} onChange={e=>qlSet("workType",e.target.value)} style={{...INP,fontSize:12}}>
+                <option value="">Select…</option>
+                {WORK_TYPES.map(w=><option key={w}>{w}</option>)}
+              </select>
+            </Field>
+            <Field label="Hours" error={qlErrors.hours}>
+              <input type="number" min="0.25" max="24" step="0.25" placeholder="0" value={qlForm.hours} onChange={e=>qlSet("hours",e.target.value)} style={{...INP,fontSize:12}}/>
+            </Field>
+            <Field label="Notes (optional)">
+              <input type="text" placeholder="Brief note…" value={qlForm.notes} onChange={e=>qlSet("notes",e.target.value)} style={{...INP,fontSize:12}}/>
+            </Field>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <div style={{display:"flex",gap:5}}>
+              {[0.5,1,1.5,2,3,4].map(h=>(
+                <button key={h} onClick={()=>qlSet("hours",String(h))} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${qlForm.hours===String(h)?T.orange:T.border}`,background:qlForm.hours===String(h)?T.orange+"22":"transparent",color:qlForm.hours===String(h)?T.orange:T.muted,cursor:"pointer",fontSize:11.5,fontWeight:600}}>
+                  {h}h
+                </button>
+              ))}
+            </div>
+            <button onClick={qlSubmit} style={{marginLeft:"auto",padding:"9px 24px",background:T.orange,border:"none",borderRadius:7,color:T.white,cursor:"pointer",fontSize:13,fontWeight:700}}>
+              Log Entry
+            </button>
+          </div>
+        </div>
+      )}
+      <div style={{display:"grid",gap:14}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
+          <StatTile label="Team Hours" value={fmtH(totalH)}
+            sub={periodTarget ? `of ${fmtH(periodTarget)} target · ${Math.round((totalH/periodTarget)*100)}%` : `${filtered.length} entries`}
+            accent={T.navy} progress={periodTarget ? (totalH/periodTarget)*100 : null}
+            delta={range==="week"?wowDeltaH():null} deltaPositive={thisWeekH>=prevWeekH}/>
+          <StatTile label="Productive Time" value={`${productivePct}%`}
+            sub={`${fmtH(productiveH)} on delivery · ${fmtH(overheadH)} overhead`}
+            accent={T.teal} progress={productivePct}/>
+          <StatTile label="Overhead Ratio" value={`${overheadPct}%`}
+            sub={`${fmtH(overheadH)} in meetings & admin`}
+            accent={overheadPct>40?"#EF4444":overheadPct>25?T.warn:T.success} progress={overheadPct}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:14}}>
+          <StatTile label="Top Project" value={topProject ? topProject.name : "—"} valueTruncate={false}
+            sub={topProject ? `${fmtH(topProject.hours)} · ${byProject.length} project${byProject.length!==1?"s":""} with hours` : "no entries yet"}
+            accent={topProject?.color||T.orange}/>
+          <StatTile label="Active Projects" value={byProject.length}
+            sub={`of ${projects.filter(p=>p.status==="Active").length} active projects`} accent={T.purple}
+            delta={range==="week"?wowDeltaN(thisWeekProjs,prevWeekProjs):null} deltaPositive={thisWeekProjs>=prevWeekProjs}/>
+        </div>
       </div>
       {atRisk.length > 0 && (
         <div style={{background:"#FFF7ED",border:`1.5px solid ${T.warn}88`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
           <span style={{fontSize:12,fontWeight:700,color:T.warn,flexShrink:0}}>⚠️ {atRisk.length} project{atRisk.length>1?"s":""} need{atRisk.length===1?"s":""} attention</span>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",flex:1}}>
             {atRisk.map(p => {
-              const burnPct = p.estimatedHours ? Math.round((p.projH/parseFloat(p.estimatedHours))*100) : null;
               const riskColor = p.daysLeft < 0 ? "#EF4444" : T.warn;
               return (
                 <div key={p.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 11px",background:T.white,borderRadius:7,border:`1px solid ${riskColor}55`,flexWrap:"wrap"}}>
@@ -287,7 +444,6 @@ function Dashboard({ entries, projects, globalIdeas }) {
                   <span style={{fontSize:11,fontWeight:700,color:riskColor}}>
                     {p.daysLeft<0?`${Math.abs(p.daysLeft)}d overdue`:p.daysLeft===0?"due today":`${p.daysLeft}d left`}
                   </span>
-                  {burnPct!==null && <span style={{fontSize:10.5,color:T.muted}}>· {burnPct}% budget used</span>}
                 </div>
               );
             })}
@@ -327,16 +483,19 @@ function Dashboard({ entries, projects, globalIdeas }) {
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"22px 24px"}}>
           {(() => {
-            const mtdTarget = Math.round((new Date().getDate() / 7) * CAPACITY_TARGET_H);
+            const isWeek = range==="week"||range==="lastweek";
+            const capTarget = isWeek ? CAPACITY_TARGET_H : Math.round(4.33 * CAPACITY_TARGET_H);
+            const capLabel  = isWeek ? `Target: ${fmtH(CAPACITY_TARGET_H)} / person` : `Target: ${fmtH(capTarget)} / person`;
+            const periodLabel = range==="week"?"This Week":range==="lastweek"?"Last Week":range==="specificMonth"&&selectedMonth?new Date(selectedMonth+"-15").toLocaleDateString("en-US",{month:"long",year:"numeric"}):"This Month";
             return (<>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-                <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted}}>Team Capacity — Month to Date</div>
-                <div style={{fontSize:10,color:T.muted}}>Target: {fmtH(mtdTarget)} / person</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted}}>Team Capacity — {periodLabel}</div>
+                <div style={{fontSize:10,color:T.muted}}>{capLabel}</div>
               </div>
               {TEAM.map(t => {
-                const mtdH = entries.filter(e=>e.person===t.id&&e.date>=getMonthStart()).reduce((s,e)=>s+e.hours,0);
-                const capPct = Math.min(Math.round((mtdH/mtdTarget)*100),100);
-                const atCap = mtdH >= mtdTarget;
+                const periodH = filtered.filter(e=>e.person===t.id).reduce((s,e)=>s+e.hours,0);
+                const capPct = Math.min(Math.round((periodH/capTarget)*100),100);
+                const atCap = periodH >= capTarget;
                 const barColor = atCap ? "#EF4444" : T.success;
                 return (
                   <div key={t.id} style={{marginBottom:16}}>
@@ -347,12 +506,12 @@ function Dashboard({ entries, projects, globalIdeas }) {
                           {atCap?"At Capacity":"Open for Work"}
                         </span>
                       </div>
-                      <span style={{fontSize:12,color:T.muted}}>{fmtH(mtdH)} <span style={{color:barColor,fontWeight:700}}>/ {fmtH(mtdTarget)}</span></span>
+                      <span style={{fontSize:12,color:T.muted}}>{fmtH(periodH)} <span style={{color:barColor,fontWeight:700}}>/ {fmtH(capTarget)}</span></span>
                     </div>
                     <div style={{height:8,background:T.cream,borderRadius:4,overflow:"hidden",border:`1px solid ${T.border}`}}>
                       <div style={{width:`${capPct}%`,height:"100%",background:barColor,borderRadius:4,transition:"width 0.4s ease"}}/>
                     </div>
-                    <div style={{fontSize:10,color:T.muted,marginTop:3}}>{capPct}% of monthly target</div>
+                    <div style={{fontSize:10,color:T.muted,marginTop:3}}>{capPct}% of period target</div>
                   </div>
                 );
               })}
@@ -377,6 +536,7 @@ function Dashboard({ entries, projects, globalIdeas }) {
                     <span style={{width:8,height:8,borderRadius:2,background:t.color,flexShrink:0}}/>
                     <span style={{color:T.text,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.name}</span>
                     <span style={{color:T.muted,flexShrink:0}}>{fmtH(t.value)}</span>
+                    <span style={{color:T.muted,flexShrink:0,fontSize:11,minWidth:32,textAlign:"right"}}>{totalH>0?Math.round((t.value/totalH)*100):0}%</span>
                   </div>
                 ))}
               </div>
@@ -408,6 +568,39 @@ function Dashboard({ entries, projects, globalIdeas }) {
         })}
         {recent.length===0&&<div style={{padding:"40px",textAlign:"center",color:T.muted,fontSize:13}}>No entries for this period.</div>}
       </div>
+
+      {/* ── Period Summary Modal ── */}
+      {showSummary && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={()=>setShowSummary(false)}>
+          <div style={{background:T.white,borderRadius:16,padding:"28px 32px",width:600,maxWidth:"92vw",boxShadow:"0 20px 60px rgba(0,0,0,0.3)",maxHeight:"85vh",display:"flex",flexDirection:"column",gap:16}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div>
+                <div style={{fontSize:17,fontWeight:800,color:T.navy}}>📋 Period Summary</div>
+                <div style={{fontSize:12,color:T.muted,marginTop:3}}>Copy into Teams, email, or your status report</div>
+              </div>
+              <button onClick={()=>setShowSummary(false)} style={{background:"transparent",border:"none",fontSize:20,color:T.muted,cursor:"pointer",lineHeight:1}}>✕</button>
+            </div>
+            <textarea
+              readOnly
+              value={generateSummary()}
+              style={{padding:"14px",border:`1.5px solid ${T.border}`,borderRadius:9,fontSize:11.5,fontFamily:"'JetBrains Mono',monospace",background:T.cream,color:T.text,resize:"none",lineHeight:1.7,flex:1,minHeight:360,outline:"none"}}
+            />
+            <div style={{display:"flex",gap:10}}>
+              <button
+                onClick={()=>navigator.clipboard.writeText(generateSummary())}
+                style={{flex:1,padding:"11px",background:T.navy,border:"none",borderRadius:8,color:T.white,cursor:"pointer",fontSize:13.5,fontWeight:700}}>
+                📋 Copy to Clipboard
+              </button>
+              <button onClick={()=>setShowSummary(false)}
+                style={{padding:"11px 20px",border:`1.5px solid ${T.border}`,borderRadius:8,background:"transparent",color:T.muted,cursor:"pointer",fontSize:13}}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Weekly Digest Modal ── */}
       {showDigest && (
@@ -693,6 +886,7 @@ function AllEntries({ entries, setEntries, projects, globalIdeas }) {
   const [fType,setFType]=useState("");
   const [fFrom,setFFrom]=useState("");
   const [fTo,setFTo]=useState("");
+  const [fNotes,setFNotes]=useState("");
   const [sort,setSort]=useState({key:"date",dir:-1});
   const [confirmId,setConfirmId]=useState(null);
   const [editId,setEditId]=useState(null);
@@ -702,8 +896,9 @@ function AllEntries({ entries, setEntries, projects, globalIdeas }) {
 
   const filtered=useMemo(()=>entries.filter(e=>
     (!fPerson||e.person===fPerson)&&(!fProject||e.project===fProject)&&
-    (!fType||e.workType===fType)&&(!fFrom||e.date>=fFrom)&&(!fTo||e.date<=fTo)
-  ).sort((a,b)=>{const va=a[sort.key]??"",vb=b[sort.key]??"";return va<vb?sort.dir:va>vb?-sort.dir:0;}),[entries,fPerson,fProject,fType,fFrom,fTo,sort]);
+    (!fType||e.workType===fType)&&(!fFrom||e.date>=fFrom)&&(!fTo||e.date<=fTo)&&
+    (!fNotes||(e.notes||"").toLowerCase().includes(fNotes.toLowerCase()))
+  ).sort((a,b)=>{const va=a[sort.key]??"",vb=b[sort.key]??"";return va<vb?sort.dir:va>vb?-sort.dir:0;}),[entries,fPerson,fProject,fType,fFrom,fTo,fNotes,sort]);
 
   const totalH=filtered.reduce((s,e)=>s+e.hours,0);
   function toggleSort(key){setSort(s=>s.key===key?{key,dir:-s.dir}:{key,dir:-1});}
@@ -720,14 +915,18 @@ function AllEntries({ entries, setEntries, projects, globalIdeas }) {
     <div style={{display:"grid",gap:16}}>
       <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"16px 20px"}}>
         <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:T.muted,marginBottom:12}}>Filters</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr) auto",gap:10,alignItems:"end"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr) auto",gap:10,alignItems:"end",marginBottom:10}}>
           <Field label="Member"><select value={fPerson} onChange={e=>setFPerson(e.target.value)} style={{...INP,fontSize:12}}><option value="">All</option>{TEAM.map(t=><option key={t.id} value={t.id}>{t.name.split(" ")[0]}</option>)}</select></Field>
           <Field label="Project"><select value={fProject} onChange={e=>setFProject(e.target.value)} style={{...INP,fontSize:12}}><option value="">All</option>{projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
           <Field label="Work Type"><select value={fType} onChange={e=>setFType(e.target.value)} style={{...INP,fontSize:12}}><option value="">All</option>{WORK_TYPES.map(w=><option key={w}>{w}</option>)}</select></Field>
           <Field label="From"><input type="date" value={fFrom} onChange={e=>setFFrom(e.target.value)} style={{...INP,fontSize:12}}/></Field>
           <Field label="To"><input type="date" value={fTo} onChange={e=>setFTo(e.target.value)} style={{...INP,fontSize:12}}/></Field>
-          <button onClick={()=>{setFPerson("");setFProject("");setFType("");setFFrom("");setFTo("");}} style={{padding:"10px 14px",border:`1.5px solid ${T.border}`,borderRadius:7,background:"transparent",color:T.muted,cursor:"pointer",fontSize:12,fontWeight:600}}>Reset</button>
+          <button onClick={()=>{setFPerson("");setFProject("");setFType("");setFFrom("");setFTo("");setFNotes("");}} style={{padding:"10px 14px",border:`1.5px solid ${T.border}`,borderRadius:7,background:"transparent",color:T.muted,cursor:"pointer",fontSize:12,fontWeight:600}}>Reset</button>
         </div>
+        <Field label="Search notes">
+          <input type="text" placeholder="Search within notes…" value={fNotes} onChange={e=>setFNotes(e.target.value)}
+            style={{...INP,fontSize:12,width:"100%"}}/>
+        </Field>
       </div>
       <div style={{display:"flex",alignItems:"center",gap:14}}>
         <span style={{fontSize:13,color:T.muted}}><b style={{color:T.text}}>{filtered.length}</b> entries · <b style={{color:T.text}}>{fmtH(totalH)}</b> total</span>
@@ -1015,6 +1214,17 @@ function ProjectForm({ data, onChange, onSubmit, onCancel, submitLabel, accentCo
           </div>
         </Field>
       </div>
+      <Field label="Level of Effort — T-Shirt Size">
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",paddingTop:4}}>
+          {LOE_SIZES.map(s=>(
+            <button key={s} onClick={()=>onChange("loeSize",data.loeSize===s?"":s)}
+              style={{padding:"5px 12px",borderRadius:6,border:`1.5px solid ${data.loeSize===s?T.teal:T.border}`,background:data.loeSize===s?T.teal+"18":"transparent",color:data.loeSize===s?T.teal:T.muted,cursor:"pointer",fontSize:12,fontWeight:700,lineHeight:1}}>
+              {s}
+            </button>
+          ))}
+          {data.loeSize && <span style={{fontSize:11,color:T.muted,alignSelf:"center",fontStyle:"italic"}}>{LOE_LABELS[data.loeSize]}</span>}
+        </div>
+      </Field>
       <div style={{display:"flex",gap:8,paddingTop:4}}>
         <button onClick={onSubmit} style={{flex:1,padding:"10px",background:accentColor||T.orange,border:"none",borderRadius:7,color:"#fff",cursor:"pointer",fontSize:13,fontWeight:700}}>{submitLabel}</button>
         <button onClick={onCancel} style={{padding:"10px 16px",border:`1.5px solid #E4DDD3`,borderRadius:7,background:"transparent",color:"#8C8278",cursor:"pointer",fontSize:13}}>Cancel</button>
@@ -1025,7 +1235,7 @@ function ProjectForm({ data, onChange, onSubmit, onCancel, submitLabel, accentCo
 
 // ─── PROJECTS PANEL ───────────────────────────────────────────────────────────
 function ProjectsPanel({ projects, setProjects, entries, globalIdeas }) {
-  const BLANK_NEW = { name:"", color:T.teal, status:"Active", pm:"", startDate:"", endDate:"", description:"", priority:"Medium", sponsor:"", estimatedHours:"" };
+  const BLANK_NEW = { name:"", color:T.teal, status:"Active", pm:"", startDate:"", endDate:"", description:"", priority:"Medium", sponsor:"", estimatedHours:"", loeSize:"" };
   const [adding, setAdding] = useState(false);
   const [newData, setNewData] = useState(BLANK_NEW);
   const [editingId, setEditingId] = useState(null);
@@ -1041,7 +1251,7 @@ function ProjectsPanel({ projects, setProjects, entries, globalIdeas }) {
   }
   function startEdit(p) {
     setEditingId(p.id);
-    setEditData({ name:p.name, color:p.color, status:p.status, pm:p.pm||"", startDate:p.startDate||"", endDate:p.endDate||"", description:p.description||"", priority:p.priority||"Medium", sponsor:p.sponsor||"", estimatedHours:p.estimatedHours||"" });
+    setEditData({ name:p.name, color:p.color, status:p.status, pm:p.pm||"", startDate:p.startDate||"", endDate:p.endDate||"", description:p.description||"", priority:p.priority||"Medium", sponsor:p.sponsor||"", estimatedHours:p.estimatedHours||"", loeSize:p.loeSize||"" });
   }
   function saveEdit(id) {
     setProjects(prev => prev.map(p => p.id===id ? {...p,...editData} : p));
@@ -1118,6 +1328,7 @@ function ProjectsPanel({ projects, setProjects, entries, globalIdeas }) {
                     <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                       <Pill label={p.status} color={statusColor} small/>
                       {p.priority && <Pill label={p.priority} color={priorityColor} small/>}
+                      {p.loeSize && <Pill label={`${p.loeSize} · ${LOE_LABELS[p.loeSize]}`} color={T.teal} small/>}
                     </div>
                   </div>
                   <div style={{display:"flex",gap:4,flexShrink:0}}>
@@ -2023,6 +2234,319 @@ function CapacityForecasting({ entries }) {
   );
 }
 
+// ─── EXECUTIVE VIEW ───────────────────────────────────────────────────────────
+function ExecView({ entries, projects }) {
+  const now = new Date();
+  const monthStart = getMonthStart();
+  const monthName = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  const mEntries = useMemo(() => entries.filter(e => e.date >= monthStart), [entries]);
+
+  // Health classification per project
+  function healthOf(p) {
+    if (p.status === "On Hold") return "hold";
+    if (!p.endDate || p.endDate === "TBD") return "active";
+    const dLeft = Math.round((new Date(p.endDate + "T12:00:00") - now) / (1000*60*60*24));
+    if (dLeft < 0) return "overdue";
+    if (dLeft <= 14) return "at-risk";
+    return "on-track";
+  }
+
+  const HEALTH = {
+    "on-track": { label: "On Track",  color: T.success   },
+    "at-risk":  { label: "At Risk",   color: T.warn      },
+    "overdue":  { label: "Overdue",   color: "#EF4444"   },
+    "hold":     { label: "On Hold",   color: T.muted     },
+    "active":   { label: "No Date",   color: T.teal      },
+  };
+
+  const activeProjects = projects.filter(p => p.status === "Active" || p.status === "On Hold");
+
+  const portfolioWithHealth = useMemo(() => activeProjects.map(p => ({
+    ...p,
+    health: healthOf(p),
+    monthHours: mEntries.filter(e => e.project === p.id).reduce((s, e) => s + e.hours, 0),
+    pmMember: TEAM.find(t => t.id === p.pm),
+  })), [activeProjects, mEntries]);
+
+  const onTrackCount  = portfolioWithHealth.filter(p => p.health === "on-track").length;
+  const atRiskCount   = portfolioWithHealth.filter(p => p.health === "at-risk").length;
+  const overdueCount  = portfolioWithHealth.filter(p => p.health === "overdue").length;
+  const datedProjects = portfolioWithHealth.filter(p => p.endDate && p.endDate !== "TBD");
+  const onTimeRate    = datedProjects.length ? Math.round((onTrackCount / datedProjects.length) * 100) : null;
+
+  // Team utilization MTD
+  const weeksElapsed  = Math.max(1, Math.ceil((now - new Date(monthStart + "T12:00:00")) / (1000*60*60*24*7)));
+  const monthTarget   = CAPACITY_TARGET_H * TEAM.length * weeksElapsed;
+  const totalMthHours = mEntries.reduce((s, e) => s + e.hours, 0);
+  const utilizationPct = monthTarget > 0 ? Math.round((totalMthHours / monthTarget) * 100) : 0;
+
+  // Productivity split (uses global constants — consistent with Dashboard)
+  const productiveH    = mEntries.filter(e => PRODUCTIVE_TYPES.includes(e.workType)).reduce((s, e) => s + e.hours, 0);
+  const overheadH      = mEntries.filter(e => OVERHEAD_TYPES.includes(e.workType)).reduce((s, e) => s + e.hours, 0);
+  const investH        = mEntries.filter(e => e.workType === "Personal Development").reduce((s, e) => s + e.hours, 0);
+  const productivityRatio = totalMthHours > 0 ? Math.round((productiveH / totalMthHours) * 100) : 0;
+
+  // Hours by priority
+  const byPriority = PRIORITIES.map(pri => ({
+    name: pri,
+    hours: mEntries.filter(e => {
+      const proj = projects.find(p => p.id === e.project);
+      return proj && proj.priority === pri;
+    }).reduce((s, e) => s + e.hours, 0),
+    color: pri === "High" ? "#EF4444" : pri === "Medium" ? T.warn : T.success,
+  })).filter(p => p.hours > 0);
+
+  // Time category chart
+  const categoryData = [
+    { name: "Project Work",  hours: productiveH, color: T.teal   },
+    { name: "Overhead",      hours: overheadH,   color: T.warn   },
+    { name: "Development",   hours: investH,     color: T.purple },
+  ].filter(d => d.hours > 0);
+
+  // Budget burn
+  const burnProjects = projects
+    .filter(p => p.estimatedHours && parseFloat(p.estimatedHours) > 0)
+    .map(p => {
+      const est    = parseFloat(p.estimatedHours);
+      const logged = entries.filter(e => e.project === p.id).reduce((s, e) => s + e.hours, 0);
+      const burnPct = Math.min(Math.round((logged / est) * 100), 100);
+      return { ...p, est, logged, burnPct, over: logged > est };
+    })
+    .sort((a, b) => b.burnPct - a.burnPct);
+
+  const topAccentColor = overdueCount > 0 ? "#EF4444" : atRiskCount > 0 ? T.warn : T.success;
+
+  return (
+    <div style={{display:"grid",gap:20}}>
+
+      {/* ── Header banner ── */}
+      <div style={{background:`linear-gradient(135deg,${T.navy} 0%,${T.navyLight} 100%)`,borderRadius:14,padding:"24px 32px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16}}>
+        <div>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:T.orange,marginBottom:6}}>Zumiez PMO · Executive Summary</div>
+          <div style={{fontSize:22,fontWeight:800,color:T.white,letterSpacing:"-0.01em"}}>{monthName}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:4}}>{TEAM.length}-person PMO team · {portfolioWithHealth.length} active projects · month-to-date</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:9.5,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>Generated</div>
+          <div style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.5)"}}>{now.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</div>
+          <div style={{fontSize:10.5,color:"rgba(255,255,255,0.25)",marginTop:2}}>PMO Time Tracking Pilot</div>
+        </div>
+      </div>
+
+      {/* ── 4 KPI tiles ── */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
+
+        {/* Portfolio Health */}
+        <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"20px 22px",position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:topAccentColor}}/>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:T.muted,marginBottom:12}}>Portfolio Health</div>
+          <div style={{display:"flex",gap:14,marginBottom:10}}>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:26,fontWeight:800,color:T.success,lineHeight:1}}>{onTrackCount}</div>
+              <div style={{fontSize:9.5,color:T.success,fontWeight:700,marginTop:3}}>On Track</div>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:26,fontWeight:800,color:T.warn,lineHeight:1}}>{atRiskCount}</div>
+              <div style={{fontSize:9.5,color:T.warn,fontWeight:700,marginTop:3}}>At Risk</div>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:26,fontWeight:800,color:"#EF4444",lineHeight:1}}>{overdueCount}</div>
+              <div style={{fontSize:9.5,color:"#EF4444",fontWeight:700,marginTop:3}}>Overdue</div>
+            </div>
+          </div>
+          <div style={{fontSize:11,color:T.muted}}>{portfolioWithHealth.length} active projects tracked</div>
+        </div>
+
+        {/* Team Utilization */}
+        <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"20px 22px",position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:utilizationPct>=70?T.success:utilizationPct>=50?T.warn:"#EF4444"}}/>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:T.muted,marginBottom:12}}>Team Utilization</div>
+          <div style={{fontSize:32,fontWeight:800,color:T.navy,letterSpacing:"-0.02em",lineHeight:1}}>{utilizationPct}%</div>
+          <div style={{fontSize:11,color:T.muted,marginTop:6,marginBottom:10}}>{fmtH(totalMthHours)} of {fmtH(monthTarget)} target MTD</div>
+          <div style={{height:5,background:T.cream,borderRadius:3,overflow:"hidden",border:`1px solid ${T.border}`}}>
+            <div style={{width:`${Math.min(utilizationPct,100)}%`,height:"100%",background:utilizationPct>=70?T.success:utilizationPct>=50?T.warn:"#EF4444",borderRadius:3}}/>
+          </div>
+        </div>
+
+        {/* On-Time Rate */}
+        <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"20px 22px",position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:onTimeRate===null?T.border:onTimeRate>=80?T.success:onTimeRate>=50?T.warn:"#EF4444"}}/>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:T.muted,marginBottom:12}}>On-Time Rate</div>
+          <div style={{fontSize:32,fontWeight:800,color:T.navy,letterSpacing:"-0.02em",lineHeight:1}}>{onTimeRate===null?"—":onTimeRate+"%"}</div>
+          <div style={{fontSize:11,color:T.muted,marginTop:6}}>{onTrackCount} of {datedProjects.length} dated projects on schedule</div>
+        </div>
+
+        {/* Productive Time */}
+        <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"20px 22px",position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:T.teal}}/>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:T.muted,marginBottom:12}}>Productive Time</div>
+          <div style={{fontSize:32,fontWeight:800,color:T.navy,letterSpacing:"-0.02em",lineHeight:1}}>{productivityRatio}%</div>
+          <div style={{fontSize:11,color:T.muted,marginTop:6}}>of hours on project delivery</div>
+          <div style={{fontSize:10.5,color:T.muted,marginTop:2}}>{fmtH(overheadH)} overhead · {fmtH(investH)} dev</div>
+        </div>
+
+      </div>
+
+      {/* ── Portfolio Scorecard table ── */}
+      <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,overflow:"hidden"}}>
+        <div style={{padding:"16px 22px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+          <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted}}>Portfolio Scorecard</div>
+          <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+            {[["On Track",T.success],["At Risk",T.warn],["Overdue","#EF4444"],["No Date",T.teal],["On Hold",T.muted]].map(([l,c])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10.5,color:T.muted}}>
+                <span style={{width:8,height:8,borderRadius:2,background:c,display:"inline-block"}}/>{l}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}>
+            <thead>
+              <tr style={{background:T.cream}}>
+                {[["Project","left"],["PM","left"],["Priority","center"],["LOE","center"],["Health","center"],["End Date","right"],["Hrs This Mo.","right"]].map(([h,a])=>(
+                  <th key={h} style={{padding:"10px 18px",textAlign:a,fontWeight:700,color:T.muted,fontSize:10.5,textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[...portfolioWithHealth].sort((a,b)=>{
+                const o={overdue:0,"at-risk":1,"on-track":2,active:3,hold:4};
+                return (o[a.health]||5)-(o[b.health]||5);
+              }).map((p,i)=>{
+                const h = HEALTH[p.health];
+                const priColor = p.priority==="High"?"#EF4444":p.priority==="Medium"?T.warn:T.success;
+                return (
+                  <tr key={p.id} style={{borderTop:`1px solid ${T.border}`,background:i%2===0?T.white:T.cream+"55"}}>
+                    <td style={{padding:"12px 18px"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{width:8,height:8,borderRadius:2,background:p.color,flexShrink:0}}/>
+                        <span style={{fontWeight:600,color:T.text}}>{p.name}</span>
+                      </div>
+                    </td>
+                    <td style={{padding:"12px 18px",color:T.muted,fontSize:12}}>{p.pmMember?.name?.split(" ")[0]||"—"}</td>
+                    <td style={{padding:"12px 18px",textAlign:"center"}}>
+                      <span style={{padding:"2px 9px",borderRadius:99,background:priColor+"18",border:`1px solid ${priColor}44`,fontSize:10,fontWeight:700,color:priColor}}>{p.priority||"—"}</span>
+                    </td>
+                    <td style={{padding:"12px 18px",textAlign:"center"}}>
+                      {p.loeSize ? <span style={{padding:"2px 9px",borderRadius:99,background:T.teal+"18",border:`1px solid ${T.teal}44`,fontSize:10,fontWeight:700,color:T.teal}}>{p.loeSize}</span> : <span style={{color:T.muted,fontSize:11}}>—</span>}
+                    </td>
+                    <td style={{padding:"12px 18px",textAlign:"center"}}>
+                      <span style={{padding:"3px 10px",borderRadius:99,background:h.color+"18",border:`1px solid ${h.color}44`,fontSize:10.5,fontWeight:700,color:h.color}}>{h.label}</span>
+                    </td>
+                    <td style={{padding:"12px 18px",textAlign:"right",fontSize:12,color:p.health==="overdue"?"#EF4444":T.text,fontWeight:p.health==="overdue"?700:400}}>
+                      {p.endDate&&p.endDate!=="TBD" ? new Date(p.endDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "TBD"}
+                    </td>
+                    <td style={{padding:"12px 18px",textAlign:"right",fontWeight:700,color:p.monthHours>0?T.navy:T.muted}}>
+                      {p.monthHours>0 ? fmtH(p.monthHours) : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Charts row ── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+
+        {/* Hours by Priority */}
+        <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"22px 20px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted,marginBottom:4}}>Hours by Priority</div>
+          <div style={{fontSize:11.5,color:T.muted,marginBottom:16}}>Are high-priority projects getting the most time?</div>
+          {byPriority.length>0 ? (
+            <ResponsiveContainer width="100%" height={150}>
+              <BarChart data={byPriority} layout="vertical" margin={{top:0,right:40,left:0,bottom:0}}>
+                <XAxis type="number" tick={{fontSize:10,fill:T.muted}}/>
+                <YAxis type="category" dataKey="name" tick={{fontSize:11,fill:T.text}} width={60}/>
+                <Tooltip formatter={v=>fmtH(v)} contentStyle={{background:T.navy,border:"none",borderRadius:8,fontSize:12,color:T.white}}/>
+                <Bar dataKey="hours" radius={[0,5,5,0]}>
+                  {byPriority.map((p,i)=><Cell key={i} fill={p.color}/>)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <div style={{padding:"40px 0",textAlign:"center",color:T.muted,fontSize:13}}>No data this month yet.</div>}
+        </div>
+
+        {/* Where Time Goes */}
+        <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"22px 20px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted,marginBottom:4}}>Where Time Goes</div>
+          <div style={{fontSize:11.5,color:T.muted,marginBottom:16}}>Project delivery vs. overhead vs. team development</div>
+          {totalMthHours>0 ? (
+            <div style={{display:"flex",gap:20,alignItems:"center"}}>
+              <ResponsiveContainer width={120} height={120}>
+                <PieChart>
+                  <Pie data={categoryData} dataKey="hours" innerRadius={32} outerRadius={56} paddingAngle={3}>
+                    {categoryData.map((d,i)=><Cell key={i} fill={d.color}/>)}
+                  </Pie>
+                  <Tooltip formatter={v=>fmtH(v)} contentStyle={{background:T.navy,border:"none",borderRadius:8,fontSize:12,color:T.white}}/>
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{display:"grid",gap:10,flex:1}}>
+                {categoryData.map(d => {
+                  const pct = Math.round((d.hours/totalMthHours)*100);
+                  return (
+                    <div key={d.name}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11.5,fontWeight:600,color:T.text}}>
+                          <span style={{width:8,height:8,borderRadius:2,background:d.color,display:"inline-block"}}/>{d.name}
+                        </div>
+                        <span style={{fontSize:11.5,fontWeight:700,color:d.color}}>{pct}%</span>
+                      </div>
+                      <div style={{height:5,background:T.cream,borderRadius:3,overflow:"hidden",border:`1px solid ${T.border}`}}>
+                        <div style={{width:`${pct}%`,height:"100%",background:d.color,borderRadius:3}}/>
+                      </div>
+                      <div style={{fontSize:10.5,color:T.muted,marginTop:2}}>{fmtH(d.hours)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : <div style={{padding:"40px 0",textAlign:"center",color:T.muted,fontSize:13}}>No data this month yet.</div>}
+        </div>
+
+      </div>
+
+      {/* ── Budget Burn ── */}
+      {burnProjects.length>0 && (
+        <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,overflow:"hidden"}}>
+          <div style={{padding:"16px 22px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted}}>Hours Budget Burn</div>
+            <div style={{fontSize:11,color:T.muted}}>All-time logged vs. estimated</div>
+          </div>
+          <div style={{padding:"20px 22px",display:"grid",gap:16}}>
+            {burnProjects.map(p => {
+              const barColor = p.over?"#EF4444":p.burnPct>=80?T.warn:T.success;
+              return (
+                <div key={p.id}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexWrap:"wrap",gap:6}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{width:8,height:8,borderRadius:2,background:p.color,flexShrink:0}}/>
+                      <span style={{fontSize:13,fontWeight:600,color:T.text}}>{p.name}</span>
+                      {p.over&&<span style={{padding:"1px 7px",borderRadius:99,background:"#FEE2E2",border:"1px solid #FCA5A5",fontSize:9.5,fontWeight:700,color:"#EF4444"}}>Over Budget</span>}
+                    </div>
+                    <span style={{fontSize:12,color:T.muted}}>{fmtH(p.logged)} <span style={{color:T.muted}}>of</span> {fmtH(p.est)} est. <span style={{color:barColor,fontWeight:700}}>({p.burnPct}%)</span></span>
+                  </div>
+                  <div style={{height:8,background:T.cream,borderRadius:4,overflow:"hidden",border:`1px solid ${T.border}`}}>
+                    <div style={{width:`${p.burnPct}%`,height:"100%",background:barColor,borderRadius:4}}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Footer ── */}
+      <div style={{textAlign:"center",fontSize:11,color:T.muted,paddingBottom:8}}>
+        Zumiez PMO · Time Tracking Pilot (Mar 10 – Jun 5, 2026) · Data current as of {now.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}
+      </div>
+
+    </div>
+  );
+}
+
 // ─── APP SHELL ────────────────────────────────────────────────────────────────
 const TABS = [
   {id:"dashboard",label:"Dashboard",icon:"◈"},
@@ -2030,9 +2554,9 @@ const TABS = [
   {id:"entries",label:"All Entries",icon:"≡"},
   {id:"team",label:"Team",icon:"◉"},
   {id:"projects",label:"Projects",icon:"⬡"},
-  {id:"pilot",label:"Pilot Tracker",icon:"◎"},
   {id:"bigideas",label:"Big Ideas",icon:"💡"},
   {id:"capacity",label:"Capacity",icon:"⚡"},
+  {id:"exec",label:"Exec View",icon:"📊"},
 ];
 
 export default function App() {
@@ -2045,6 +2569,9 @@ export default function App() {
   const [importError, setImportError] = useState("");
   const [importSuccess, setImportSuccess] = useState("");
   const [saveStatus, setSaveStatus] = useState(""); // "saving" | "saved" | ""
+  const [exportFallbackJson, setExportFallbackJson] = useState("");
+  const [mergePreview, setMergePreview] = useState(null); // { toAdd, skipped, name, dateMin, dateMax, projectChanges }
+  const [mergeProjectSelections, setMergeProjectSelections] = useState({}); // { [projectId]: true|false }
   const isFirstLoad = useRef(true);
   const saveTimer = useRef(null);
 
@@ -2096,13 +2623,22 @@ export default function App() {
       globalIdeas,
     };
     const json = JSON.stringify(snapshot, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `pmo-tracker-backup-${today()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      // Try native download first (works on local Vite server)
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `pmo-tracker-backup-${today()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      // Fallback for sandboxed environments (Claude artifact) — show copy modal
+      setExportFallbackJson(json);
+      setShowDataModal("export-fallback");
+    }
   }
 
   function importAll(jsonText) {
@@ -2123,15 +2659,86 @@ export default function App() {
     }
   }
 
+  function handleMergeFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!data.entries) { alert("Invalid file — no entries found."); return; }
+
+        // ── Entries: only pull non-Natalia entries ──────────────────────────
+        const incoming = data.entries.filter(e => e.person !== "natalia");
+        if (!incoming.length) { alert("No team member entries found in this file. Make sure Cara or Quin exported their own data."); return; }
+        const persons = [...new Set(incoming.map(e => e.person))];
+        const memberNames = persons.map(p => TEAM.find(t => t.id === p)?.name || p).join(" & ");
+        const existingIds = new Set(entries.map(e => e.id));
+        const toAdd = incoming.filter(e => !existingIds.has(e.id));
+        const skipped = incoming.length - toAdd.length;
+        const dates = toAdd.map(e => e.date).sort();
+
+        // ── Projects: detect new + changed ──────────────────────────────────
+        const COMPARE_FIELDS = ["name","status","priority","endDate","startDate","description","sponsor","color","pm"];
+        const projectChanges = [];
+        if (data.projects) {
+          data.projects.forEach(inProj => {
+            const existing = projects.find(p => p.id === inProj.id);
+            if (!existing) {
+              projectChanges.push({ type:"new", project: inProj, changes: [] });
+            } else {
+              const changed = COMPARE_FIELDS.filter(f => (inProj[f]||"") !== (existing[f]||""))
+                .map(f => ({ field: f, from: existing[f]||"—", to: inProj[f]||"—" }));
+              if (changed.length) projectChanges.push({ type:"updated", project: inProj, existing, changes: changed });
+            }
+          });
+        }
+
+        // Default: all project changes accepted
+        const defaultSelections = {};
+        projectChanges.forEach(c => { defaultSelections[c.project.id] = true; });
+        setMergeProjectSelections(defaultSelections);
+        setMergePreview({ toAdd, skipped, persons, name: memberNames,
+          dateMin: dates[0], dateMax: dates[dates.length-1], projectChanges });
+        setShowDataModal("merge-preview");
+      } catch(err) {
+        alert("Could not read file — make sure it's a valid JSON backup.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function confirmMerge() {
+    if (!mergePreview) return;
+    // Add entries
+    setEntries(prev => [...prev, ...mergePreview.toAdd]);
+    // Apply accepted project changes
+    const accepted = mergePreview.projectChanges.filter(c => mergeProjectSelections[c.project.id]);
+    if (accepted.length) {
+      setProjects(prev => {
+        let updated = [...prev];
+        accepted.forEach(c => {
+          if (c.type === "new") {
+            updated.push(c.project);
+          } else {
+            updated = updated.map(p => p.id === c.project.id ? { ...p, ...c.project } : p);
+          }
+        });
+        return updated;
+      });
+    }
+    setMergePreview(null);
+    setMergeProjectSelections({});
+    setShowDataModal(false);
+  }
+
   function handleImportFile(e) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = ev => {
-      const text = ev.target.result;
-      setImportText(text);
-      setImportError("");
-      setImportSuccess("");
+      // Auto-load immediately on file select — no extra button click needed
+      importAll(ev.target.result);
     };
     reader.readAsText(file);
   }
@@ -2184,7 +2791,7 @@ export default function App() {
                 {saveStatus==="saving" ? "● saving…" : "✓ saved to disk"}
               </div>
             )}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:0}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:6}}>
               <button onClick={exportAll}
                 style={{padding:"8px 6px",background:T.teal,border:"none",borderRadius:7,color:T.white,cursor:"pointer",fontSize:11,fontWeight:700,textAlign:"center"}}>
                 ↓ Backup
@@ -2194,6 +2801,10 @@ export default function App() {
                 ↑ Restore
               </button>
             </div>
+            <label style={{display:"block",padding:"8px 6px",background:"rgba(139,92,246,0.25)",border:"1px solid rgba(139,92,246,0.4)",borderRadius:7,color:"rgba(255,255,255,0.85)",cursor:"pointer",fontSize:11,fontWeight:700,textAlign:"center"}}>
+              ⤵ Merge Team Data
+              <input type="file" accept=".json" onChange={handleMergeFile} style={{display:"none"}}/>
+            </label>
           </div>
           <div style={{padding:"14px 20px 20px",borderTop:`1px solid ${T.navyLight}`}}>
             <div style={{fontSize:9.5,color:"rgba(255,255,255,0.3)",fontWeight:700,letterSpacing:"0.09em",textTransform:"uppercase",marginBottom:10}}>Team</div>
@@ -2217,14 +2828,14 @@ export default function App() {
             <h1 style={{fontSize:22,fontWeight:800,color:T.navy,letterSpacing:"-0.02em"}}>{TABS.find(t=>t.id===tab)?.label}</h1>
             <div style={{fontSize:12,color:T.muted,marginTop:3}}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</div>
           </div>
-          {tab==="dashboard" && <Dashboard entries={entries} projects={projects} globalIdeas={globalIdeas}/>}
+          {tab==="dashboard" && <Dashboard entries={entries} setEntries={setEntries} projects={projects} globalIdeas={globalIdeas}/>}
           {tab==="log" && <LogTime entries={entries} setEntries={setEntries} projects={projects} globalIdeas={globalIdeas}/>}
           {tab==="entries" && <AllEntries entries={entries} setEntries={setEntries} projects={projects} globalIdeas={globalIdeas}/>}
           {tab==="team" && <TeamView entries={entries} projects={projects} globalIdeas={globalIdeas}/>}
           {tab==="projects" && <ProjectsPanel projects={projects} setProjects={setProjects} entries={entries} globalIdeas={globalIdeas}/>}
-          {tab==="pilot" && <PilotTracker entries={entries} projects={projects} globalIdeas={globalIdeas}/>}
           {tab==="bigideas" && <BigIdeasTab globalIdeas={globalIdeas} setGlobalIdeas={setGlobalIdeas} projects={projects} entries={entries}/>}
           {tab==="capacity" && <CapacityForecasting entries={entries}/>}
+          {tab==="exec" && <ExecView entries={entries} projects={projects}/>}
         </div>
       </div>
 
@@ -2281,6 +2892,149 @@ export default function App() {
 
             <div style={{marginTop:16,padding:"12px 14px",background:T.cream,borderRadius:8,fontSize:11.5,color:T.muted,lineHeight:1.7}}>
               ⚠️ <strong>This will replace all current data</strong> — entries, projects, and Big Ideas will be overwritten with the imported file. Export first if you want to save what's currently loaded.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Merge Preview Modal ── */}
+      {showDataModal === "merge-preview" && mergePreview && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={()=>{setShowDataModal(false);setMergePreview(null);}}>
+          <div style={{background:T.white,borderRadius:16,padding:"28px 32px",width:500,maxWidth:"90vw",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <div>
+                <div style={{fontSize:17,fontWeight:800,color:T.navy}}>⤵ Merge Team Data</div>
+                <div style={{fontSize:12,color:T.muted,marginTop:3}}>Review before merging — this adds entries without replacing your data</div>
+              </div>
+              <button onClick={()=>{setShowDataModal(false);setMergePreview(null);}} style={{background:"transparent",border:"none",fontSize:20,color:T.muted,cursor:"pointer",lineHeight:1}}>✕</button>
+            </div>
+
+            {/* Preview summary */}
+            <div style={{background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:10,padding:"16px 18px",marginBottom:16}}>
+              <div style={{fontSize:14,fontWeight:800,color:"#166534",marginBottom:10}}>
+                ✓ Ready to merge {mergePreview.toAdd.length} entries from {mergePreview.name}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+                <div style={{background:"white",borderRadius:8,padding:"10px 12px",textAlign:"center"}}>
+                  <div style={{fontSize:22,fontWeight:900,color:T.navy}}>{mergePreview.toAdd.length}</div>
+                  <div style={{fontSize:11,color:T.muted,marginTop:2}}>New entries</div>
+                </div>
+                <div style={{background:"white",borderRadius:8,padding:"10px 12px",textAlign:"center"}}>
+                  <div style={{fontSize:22,fontWeight:900,color:T.navy}}>{mergePreview.skipped}</div>
+                  <div style={{fontSize:11,color:T.muted,marginTop:2}}>Already exist (skip)</div>
+                </div>
+                <div style={{background:"white",borderRadius:8,padding:"10px 12px",textAlign:"center"}}>
+                  <div style={{fontSize:13,fontWeight:800,color:T.navy,lineHeight:1.3}}>{mergePreview.dateMin}<br/>→ {mergePreview.dateMax}</div>
+                  <div style={{fontSize:11,color:T.muted,marginTop:2}}>Date range</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Who + hours */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+              <div style={{background:T.cream,borderRadius:8,padding:"10px 14px",fontSize:12,color:T.muted,lineHeight:1.7}}>
+                👤 <strong>Source:</strong> {mergePreview.name}<br/>
+                🔒 Your existing entries stay untouched
+              </div>
+              <div style={{padding:"10px 14px",background:"#EEF2FF",borderRadius:8,fontSize:12,color:"#3730A3",lineHeight:1.7}}>
+                📊 <strong>{mergePreview.toAdd.reduce((s,e)=>s+e.hours,0).toFixed(1)}h</strong> total hours added<br/>
+                📁 {mergePreview.toAdd.length} entries · {mergePreview.skipped} skipped
+              </div>
+            </div>
+
+            {/* Project changes */}
+            {mergePreview.projectChanges.length > 0 && (
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:12,fontWeight:800,color:T.navy,marginBottom:8}}>
+                  Project Changes ({mergePreview.projectChanges.length}) — toggle to accept or skip
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:220,overflowY:"auto"}}>
+                  {mergePreview.projectChanges.map(c => (
+                    <div key={c.project.id}
+                      style={{borderRadius:9,border:`1.5px solid ${mergeProjectSelections[c.project.id]?T.teal:T.border}`,padding:"10px 14px",background:mergeProjectSelections[c.project.id]?"#F0FDF4":"#FAFAFA",cursor:"pointer"}}
+                      onClick={()=>setMergeProjectSelections(prev=>({...prev,[c.project.id]:!prev[c.project.id]}))}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom: c.changes.length?6:0}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <div style={{width:10,height:10,borderRadius:2,background:c.project.color||T.navy,flexShrink:0}}/>
+                          <span style={{fontSize:13,fontWeight:700,color:T.navy}}>{c.project.name}</span>
+                          <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:4,
+                            background:c.type==="new"?"#DBEAFE":"#FEF9C3",
+                            color:c.type==="new"?"#1E40AF":"#92400E"}}>
+                            {c.type==="new"?"NEW PROJECT":"UPDATED"}
+                          </span>
+                        </div>
+                        <div style={{width:20,height:20,borderRadius:50,border:`2px solid ${mergeProjectSelections[c.project.id]?T.teal:T.border}`,background:mergeProjectSelections[c.project.id]?T.teal:"white",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:11,fontWeight:800,flexShrink:0}}>
+                          {mergeProjectSelections[c.project.id]?"✓":""}
+                        </div>
+                      </div>
+                      {c.changes.length > 0 && (
+                        <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
+                          {c.changes.map(ch => (
+                            <span key={ch.field} style={{fontSize:10.5,background:"white",border:`1px solid ${T.border}`,borderRadius:5,padding:"2px 7px",color:T.muted}}>
+                              <strong style={{color:T.navy}}>{ch.field}:</strong> {String(ch.from).slice(0,18)} → <strong style={{color:T.teal}}>{String(ch.to).slice(0,18)}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {mergePreview.projectChanges.length === 0 && (
+              <div style={{marginBottom:16,padding:"10px 14px",background:T.cream,borderRadius:8,fontSize:12,color:T.muted}}>
+                ✓ No project changes detected — projects are in sync
+              </div>
+            )}
+
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={confirmMerge}
+                style={{flex:1,padding:"11px",background:"#7C3AED",border:"none",borderRadius:8,color:T.white,cursor:"pointer",fontSize:13.5,fontWeight:700}}>
+                ✓ Merge {mergePreview.toAdd.length} Entries
+                {Object.values(mergeProjectSelections).filter(Boolean).length > 0 && ` + ${Object.values(mergeProjectSelections).filter(Boolean).length} Project Changes`}
+              </button>
+              <button onClick={()=>{setShowDataModal(false);setMergePreview(null);setMergeProjectSelections({});}}
+                style={{padding:"11px 20px",border:`1.5px solid ${T.border}`,borderRadius:8,background:"transparent",color:T.muted,cursor:"pointer",fontSize:13}}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Export Fallback Modal (sandboxed environments) ── */}
+      {showDataModal === "export-fallback" && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={()=>setShowDataModal(false)}>
+          <div style={{background:T.white,borderRadius:16,padding:"28px 32px",width:560,maxWidth:"90vw",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div>
+                <div style={{fontSize:17,fontWeight:800,color:T.navy}}>↓ Your Backup JSON</div>
+                <div style={{fontSize:12,color:T.muted,marginTop:3}}>Download unavailable in this environment — copy the text below and save as a <code>.json</code> file</div>
+              </div>
+              <button onClick={()=>setShowDataModal(false)} style={{background:"transparent",border:"none",fontSize:20,color:T.muted,cursor:"pointer",lineHeight:1}}>✕</button>
+            </div>
+            <textarea
+              readOnly
+              value={exportFallbackJson}
+              rows={12}
+              style={{...INP,fontSize:11,fontFamily:"'JetBrains Mono',monospace",resize:"vertical",lineHeight:1.5,marginBottom:12}}
+              onFocus={e=>e.target.select()}
+            />
+            <div style={{display:"flex",gap:10}}>
+              <button
+                onClick={()=>{ navigator.clipboard.writeText(exportFallbackJson).catch(()=>{}); }}
+                style={{flex:1,padding:"11px",background:T.navy,border:"none",borderRadius:8,color:T.white,cursor:"pointer",fontSize:13.5,fontWeight:700}}>
+                📋 Copy to Clipboard
+              </button>
+              <button onClick={()=>setShowDataModal(false)}
+                style={{padding:"11px 20px",border:`1.5px solid ${T.border}`,borderRadius:8,background:"transparent",color:T.muted,cursor:"pointer",fontSize:13}}>
+                Close
+              </button>
             </div>
           </div>
         </div>
