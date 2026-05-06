@@ -33,7 +33,7 @@ const LOE_LABELS = { XS:"< 1 week", S:"1-2 weeks", M:"2-6 weeks", L:"1-3 months"
 
 const CHANGELOG = [
   {
-    version: "2.0", date: "May 2026", tag: "Major Release", tagColor: T.orange,
+    version: "2.0", date: "May 2026", tag: "Major Release", tagColor: T.orange, released: null,
     whatsNew: [
       { title: "Quick Log on Dashboard", desc: "Log time without switching tabs — inline form with quick-pick hour buttons (0.5h–4h) right on the Dashboard." },
       { title: "Period Summary Export", desc: "📋 Summary button generates a formatted text report for the selected period. Copy it straight into Teams or email." },
@@ -61,7 +61,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: "1.0", date: "March 2026", tag: "Pilot Launch", tagColor: T.teal,
+    version: "1.0", date: "March 2026", tag: "Pilot Launch", tagColor: T.teal, released: "March 10, 2026",
     whatsNew: [
       { title: "7-tab PMO tracker", desc: "Dashboard, Log Time, All Entries, Team, Projects, Big Ideas, and Pilot Tracker — full tracking suite built and deployed." },
       { title: "Auto-save to disk", desc: "All changes save automatically to pmo-tracker-live.json via a local file API. No manual export needed day-to-day." },
@@ -2281,10 +2281,48 @@ function CapacityForecasting({ entries }) {
 // ─── EXECUTIVE VIEW ───────────────────────────────────────────────────────────
 function ExecView({ entries, projects }) {
   const now = new Date();
-  const monthStart = getMonthStart();
-  const monthName = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const [range, setRange] = useState("month");
+  const [selectedMonth, setSelectedMonth] = useState("");
 
-  const mEntries = useMemo(() => entries.filter(e => e.date >= monthStart), [entries]);
+  const availableMonths = useMemo(() => {
+    const months = [...new Set(entries.map(e => e.date.slice(0,7)))].sort().reverse();
+    return months.map(m => {
+      const [y,mo] = m.split("-");
+      const label = new Date(parseInt(y),parseInt(mo)-1,1).toLocaleDateString("en-US",{month:"long",year:"numeric"});
+      return { value: m, label };
+    });
+  }, [entries]);
+
+  const filtered = useMemo(() => {
+    if (range === "week") return entries.filter(e => e.date >= getWeekStart());
+    if (range === "lastweek") { const ws = getWeekStart(), lws = getLastWeekStart(); return entries.filter(e => e.date >= lws && e.date < ws); }
+    if (range === "month") return entries.filter(e => e.date >= getMonthStart());
+    if (range === "specificMonth" && selectedMonth) return entries.filter(e => e.date.startsWith(selectedMonth));
+    return entries;
+  }, [entries, range, selectedMonth]);
+
+  // Period label for header
+  const periodLabel = useMemo(() => {
+    if (range === "week") return "This Week";
+    if (range === "lastweek") return "Last Week";
+    if (range === "month") return now.toLocaleDateString("en-US",{month:"long",year:"numeric"}) + " (MTD)";
+    if (range === "specificMonth" && selectedMonth) {
+      const [y,mo] = selectedMonth.split("-");
+      return new Date(parseInt(y),parseInt(mo)-1,1).toLocaleDateString("en-US",{month:"long",year:"numeric"});
+    }
+    return "All Time";
+  }, [range, selectedMonth]);
+
+  // Period utilization target
+  const periodTarget = useMemo(() => {
+    if (range === "week" || range === "lastweek") return CAPACITY_TARGET_H * TEAM.length;
+    if (range === "month") {
+      const weeksElapsed = Math.max(1, Math.ceil((now - new Date(getMonthStart()+"T12:00:00"))/(1000*60*60*24*7)));
+      return CAPACITY_TARGET_H * TEAM.length * weeksElapsed;
+    }
+    if (range === "specificMonth") return Math.round(4.33 * CAPACITY_TARGET_H * TEAM.length);
+    return null;
+  }, [range, selectedMonth]);
 
   // Health classification per project
   function healthOf(p) {
@@ -2309,9 +2347,9 @@ function ExecView({ entries, projects }) {
   const portfolioWithHealth = useMemo(() => activeProjects.map(p => ({
     ...p,
     health: healthOf(p),
-    monthHours: mEntries.filter(e => e.project === p.id).reduce((s, e) => s + e.hours, 0),
+    periodHours: filtered.filter(e => e.project === p.id).reduce((s, e) => s + e.hours, 0),
     pmMember: TEAM.find(t => t.id === p.pm),
-  })), [activeProjects, mEntries]);
+  })), [activeProjects, filtered]);
 
   const onTrackCount  = portfolioWithHealth.filter(p => p.health === "on-track").length;
   const atRiskCount   = portfolioWithHealth.filter(p => p.health === "at-risk").length;
@@ -2319,22 +2357,19 @@ function ExecView({ entries, projects }) {
   const datedProjects = portfolioWithHealth.filter(p => p.endDate && p.endDate !== "TBD");
   const onTimeRate    = datedProjects.length ? Math.round((onTrackCount / datedProjects.length) * 100) : null;
 
-  // Team utilization MTD
-  const weeksElapsed  = Math.max(1, Math.ceil((now - new Date(monthStart + "T12:00:00")) / (1000*60*60*24*7)));
-  const monthTarget   = CAPACITY_TARGET_H * TEAM.length * weeksElapsed;
-  const totalMthHours = mEntries.reduce((s, e) => s + e.hours, 0);
-  const utilizationPct = monthTarget > 0 ? Math.round((totalMthHours / monthTarget) * 100) : 0;
+  const totalPeriodHours = filtered.reduce((s, e) => s + e.hours, 0);
+  const utilizationPct = periodTarget > 0 ? Math.round((totalPeriodHours / periodTarget) * 100) : 0;
 
-  // Productivity split (uses global constants — consistent with Dashboard)
-  const productiveH    = mEntries.filter(e => PRODUCTIVE_TYPES.includes(e.workType)).reduce((s, e) => s + e.hours, 0);
-  const overheadH      = mEntries.filter(e => OVERHEAD_TYPES.includes(e.workType)).reduce((s, e) => s + e.hours, 0);
-  const investH        = mEntries.filter(e => e.workType === "Personal Development").reduce((s, e) => s + e.hours, 0);
-  const productivityRatio = totalMthHours > 0 ? Math.round((productiveH / totalMthHours) * 100) : 0;
+  // Productivity split
+  const productiveH    = filtered.filter(e => PRODUCTIVE_TYPES.includes(e.workType)).reduce((s, e) => s + e.hours, 0);
+  const overheadH      = filtered.filter(e => OVERHEAD_TYPES.includes(e.workType)).reduce((s, e) => s + e.hours, 0);
+  const investH        = filtered.filter(e => e.workType === "Personal Development").reduce((s, e) => s + e.hours, 0);
+  const productivityRatio = totalPeriodHours > 0 ? Math.round((productiveH / totalPeriodHours) * 100) : 0;
 
   // Hours by priority
   const byPriority = PRIORITIES.map(pri => ({
     name: pri,
-    hours: mEntries.filter(e => {
+    hours: filtered.filter(e => {
       const proj = projects.find(p => p.id === e.project);
       return proj && proj.priority === pri;
     }).reduce((s, e) => s + e.hours, 0),
@@ -2348,7 +2383,7 @@ function ExecView({ entries, projects }) {
     { name: "Development",   hours: investH,     color: T.purple },
   ].filter(d => d.hours > 0);
 
-  // Budget burn
+  // Budget burn (always all-time — burn rate is cumulative)
   const burnProjects = projects
     .filter(p => p.estimatedHours && parseFloat(p.estimatedHours) > 0)
     .map(p => {
@@ -2364,17 +2399,32 @@ function ExecView({ entries, projects }) {
   return (
     <div style={{display:"grid",gap:20}}>
 
+      {/* ── Period selector ── */}
+      <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+        <span style={{fontSize:11,color:T.muted,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",marginRight:4}}>Period:</span>
+        {[{v:"week",l:"This Week"},{v:"lastweek",l:"Last Week"},{v:"month",l:"Month to Date"},{v:"all",l:"All Time"}].map(r=>(
+          <button key={r.v} onClick={()=>setRange(r.v)} style={{padding:"7px 18px",borderRadius:7,border:`1.5px solid ${range===r.v&&range!=="specificMonth"?T.navy:T.border}`,background:range===r.v&&range!=="specificMonth"?T.navy:"transparent",color:range===r.v&&range!=="specificMonth"?T.white:T.muted,cursor:"pointer",fontSize:12.5,fontWeight:600}}>
+            {r.l}
+          </button>
+        ))}
+        <select value={range==="specificMonth"?selectedMonth:""} onChange={e=>{if(e.target.value){setSelectedMonth(e.target.value);setRange("specificMonth");}}}
+          style={{padding:"7px 14px",borderRadius:7,border:`1.5px solid ${range==="specificMonth"?T.navy:T.border}`,background:range==="specificMonth"?T.navy:"white",color:range==="specificMonth"?T.white:T.muted,cursor:"pointer",fontSize:12.5,fontWeight:600,outline:"none"}}>
+          <option value="">📅 Pick Month…</option>
+          {availableMonths.map(m=><option key={m.value} value={m.value}>{m.label}</option>)}
+        </select>
+      </div>
+
       {/* ── Header banner ── */}
       <div style={{background:`linear-gradient(135deg,${T.navy} 0%,${T.navyLight} 100%)`,borderRadius:14,padding:"24px 32px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16}}>
         <div>
           <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:T.orange,marginBottom:6}}>Zumiez PMO · Executive Summary</div>
-          <div style={{fontSize:22,fontWeight:800,color:T.white,letterSpacing:"-0.01em"}}>{monthName}</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:4}}>{TEAM.length}-person PMO team · {portfolioWithHealth.length} active projects · month-to-date</div>
+          <div style={{fontSize:22,fontWeight:800,color:T.white,letterSpacing:"-0.01em"}}>{periodLabel}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:4}}>{TEAM.length}-person PMO team · {portfolioWithHealth.length} active projects</div>
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{fontSize:9.5,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>Generated</div>
           <div style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.5)"}}>{now.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</div>
-          <div style={{fontSize:10.5,color:"rgba(255,255,255,0.25)",marginTop:2}}>PMO Time Tracking Pilot</div>
+          <div style={{fontSize:10.5,color:"rgba(255,255,255,0.25)",marginTop:2}}>PMO Time Tracking</div>
         </div>
       </div>
 
@@ -2448,7 +2498,7 @@ function ExecView({ entries, projects }) {
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}>
             <thead>
               <tr style={{background:T.cream}}>
-                {[["Project","left"],["PM","left"],["Priority","center"],["LOE","center"],["Health","center"],["End Date","right"],["Hrs This Mo.","right"]].map(([h,a])=>(
+                {[["Project","left"],["PM","left"],["Priority","center"],["LOE","center"],["Health","center"],["End Date","right"],["Hrs (Period)","right"]].map(([h,a])=>(
                   <th key={h} style={{padding:"10px 18px",textAlign:a,fontWeight:700,color:T.muted,fontSize:10.5,textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{h}</th>
                 ))}
               </tr>
@@ -2481,8 +2531,8 @@ function ExecView({ entries, projects }) {
                     <td style={{padding:"12px 18px",textAlign:"right",fontSize:12,color:p.health==="overdue"?"#EF4444":T.text,fontWeight:p.health==="overdue"?700:400}}>
                       {p.endDate&&p.endDate!=="TBD" ? new Date(p.endDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "TBD"}
                     </td>
-                    <td style={{padding:"12px 18px",textAlign:"right",fontWeight:700,color:p.monthHours>0?T.navy:T.muted}}>
-                      {p.monthHours>0 ? fmtH(p.monthHours) : "—"}
+                    <td style={{padding:"12px 18px",textAlign:"right",fontWeight:700,color:p.periodHours>0?T.navy:T.muted}}>
+                      {p.periodHours>0 ? fmtH(p.periodHours) : "—"}
                     </td>
                   </tr>
                 );
@@ -2600,7 +2650,8 @@ function WhatsNew() {
     const line = "━".repeat(44);
     const sectionHeader = (emoji, label) => `\n${emoji} ${label}`;
     const bullets = arr => arr.map(i => `  • ${i.title} — ${i.desc}`).join("\n");
-    let out = `PMO Time Tracker — Release Notes\nv${v.version} · ${v.date}\n${line}\n`;
+    const releasedLine = v.released ? `Released: ${v.released}` : `Status: Pending release`;
+    let out = `PMO Time Tracker — Release Notes\nv${v.version} · ${v.date}\n${releasedLine}\n${line}\n`;
     if (v.whatsNew.length) out += `${sectionHeader("🆕","WHAT'S NEW")}\n${bullets(v.whatsNew)}\n`;
     if (v.improvements.length) out += `${sectionHeader("✨","IMPROVEMENTS")}\n${bullets(v.improvements)}\n`;
     if (v.removed.length) out += `${sectionHeader("🗑","REMOVED")}\n${bullets(v.removed)}\n`;
@@ -2663,9 +2714,13 @@ function WhatsNew() {
           {/* Version header */}
           <div style={{background:vi===0?`linear-gradient(135deg,${T.navy} 0%,${T.navyLight} 100%)`:T.cream,padding:"20px 28px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
             <div style={{flex:1}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4,flexWrap:"wrap"}}>
                 <span style={{fontSize:22,fontWeight:900,color:vi===0?T.white:T.navy,letterSpacing:"-0.02em"}}>v{v.version}</span>
                 <span style={{padding:"3px 10px",borderRadius:99,background:v.tagColor,color:T.white,fontSize:10,fontWeight:800,letterSpacing:"0.06em",textTransform:"uppercase"}}>{v.tag}</span>
+                {v.released
+                  ? <span style={{padding:"3px 10px",borderRadius:99,background:"rgba(45,155,111,0.2)",border:"1px solid rgba(45,155,111,0.4)",color:vi===0?"#6EE7B7":T.success,fontSize:10,fontWeight:700}}>✓ Released {v.released}</span>
+                  : <span style={{padding:"3px 10px",borderRadius:99,background:"rgba(240,90,34,0.15)",border:"1px solid rgba(240,90,34,0.35)",color:vi===0?T.orangeLight:T.orange,fontSize:10,fontWeight:700}}>⏳ Pending release</span>
+                }
               </div>
               <div style={{fontSize:12,color:vi===0?"rgba(255,255,255,0.5)":T.muted,fontWeight:600}}>{v.date}</div>
             </div>

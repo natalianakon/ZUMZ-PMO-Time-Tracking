@@ -177,7 +177,7 @@ git add .
 git commit -m "what you changed"
 git push https://YOUR_TOKEN@github.com/natalianakon/ZUMZ-PMO-Time-Tracking.git main
 ```
-> Token expires Apr 17, 2026 — regenerate at GitHub → Settings → Developer Settings → Fine-grained tokens.
+> Token expires Jun 2026 — regenerate at GitHub → Settings → Developer Settings → Fine-grained tokens.
 
 **Clone fresh on a new machine:**
 ```bash
