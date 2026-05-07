@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Fragment } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ const OVERHEAD_TYPES   = ["Meetings","Admin / Other","Reporting","Risk & Issues"
 const CAPACITY_TARGET_PCT = 0.70;
 const WORK_WEEK_H = 40;
 const CAPACITY_TARGET_H = Math.round(WORK_WEEK_H * CAPACITY_TARGET_PCT); // 28
-const STATUSES = ["Active","On Hold","Complete","Planned"];
+const STATUSES = ["Active","FY26","On Hold","Complete","Planned"];
 const PROJ_COLORS = [T.orange, T.teal, T.purple, T.warn, "#EC4899", T.success, "#6366F1", T.navyLight];
 
 const PRIORITIES = ["High","Medium","Low"];
@@ -992,7 +992,7 @@ function AllEntries({ entries, setEntries, projects, globalIdeas }) {
                   const proj=pMap[e.project];
                   const biTitle=e.bigIdea?allBiMap[e.bigIdea]:null;
                   const isEd=editId===e.id;
-                  const editProjBigIdeas=isEd?globalIdeas.filter(b=>(pMap[editForm.project]?.bigIdeas||[]).includes(b.id)):[];
+                  const editProjBigIdeas=isEd?globalIdeas:[];
                   return (
                     <tr key={e.id} style={{borderBottom:`1px solid ${T.border}`,background:i%2===0?T.white:T.cream}}>
                       <td style={{padding:"10px 14px",color:T.muted,fontSize:11.5,whiteSpace:"nowrap"}}>
@@ -1346,20 +1346,40 @@ function ProjectsPanel({ projects, setProjects, entries, globalIdeas }) {
         </div>
       )}
 
-      {/* Project cards grid — always visible, edit button just opens the panel above */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-        {projects.map(p => {
+      {/* Project cards — grouped by status */}
+      <div style={{display:"grid",gap:28}}>
+        {[
+          {key:"Active",   label:"Active",             color:T.success},
+          {key:"FY26",     label:"FY26 — Year-Round",  color:T.purple},
+          {key:"On Hold",  label:"On Hold",             color:T.warn},
+          {key:"Planned",  label:"Planned",             color:T.navy},
+          {key:"Complete", label:"Completed",           color:T.teal},
+        ].map(({key,label,color})=>{
+          const group=projects.filter(p=>p.status===key);
+          if(!group.length) return null;
+          return (
+            <div key={key}>
+              {/* Section header */}
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:color,flexShrink:0}}/>
+                <span style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:"0.1em",color}}>{label}</span>
+                <span style={{fontSize:11,color:T.muted,fontWeight:500}}>{group.length} project{group.length!==1?"s":""}</span>
+                <div style={{flex:1,height:1,background:T.border}}/>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
+        {group.map(p => {
           const pe=entries.filter(e=>e.project===p.id);
           const pH=pe.reduce((s,e)=>s+e.hours,0);
           const wH=pe.filter(e=>e.date>=getWeekStart()).reduce((s,e)=>s+e.hours,0);
           const activeMembers=[...new Set(pe.map(e=>e.person))];
           const isBeingEdited=editingId===p.id;
-          const statusColor={Active:T.success,"On Hold":T.warn,Complete:T.teal,Planned:T.navy}[p.status]||T.muted;
+          const statusColor={Active:T.success,FY26:T.purple,"On Hold":T.warn,Complete:T.teal,Planned:T.navy}[p.status]||T.muted;
           const priorityColor={High:"#EF4444",Medium:T.warn,Low:T.success}[p.priority||"Medium"];
           const pm=TEAM.find(t=>t.id===p.pm);
           const dl=daysLeft(p.endDate);
           const prog=projectProgress(p);
-          const dlColor = dl===null?T.muted : dl<0?"#EF4444" : dl<=14?T.warn : T.success;
+          const isComplete = p.status==="Complete";
+          const dlColor = isComplete?T.teal : dl===null?T.muted : dl<0?"#EF4444" : dl<=14?T.warn : T.success;
 
           return (
             <div key={p.id} style={{background:T.white,border:`1.5px solid ${isBeingEdited?T.success:T.border}`,borderRadius:12,overflow:"hidden",display:"flex",flexDirection:"column",transition:"border-color 0.2s"}}>
@@ -1419,13 +1439,13 @@ function ProjectsPanel({ projects, setProjects, entries, globalIdeas }) {
                       </div>
                       {dl!==null && (
                         <span style={{fontSize:10.5,fontWeight:700,color:dlColor}}>
-                          {dl<0?`${Math.abs(dl)}d overdue`:dl===0?"Due today":`${dl}d left`}
+                          {isComplete?"✓ Complete":dl<0?`${Math.abs(dl)}d overdue`:dl===0?"Due today":`${dl}d left`}
                         </span>
                       )}
                     </div>
-                    {prog!==null && (
+                    {(prog!==null||isComplete) && (
                       <div style={{height:5,background:T.cream,borderRadius:3,overflow:"hidden",border:`1px solid ${T.border}`}}>
-                        <div style={{width:`${prog}%`,height:"100%",background:p.color,borderRadius:3}}/>
+                        <div style={{width:`${isComplete?100:prog}%`,height:"100%",background:isComplete?T.teal:p.color,borderRadius:3}}/>
                       </div>
                     )}
                   </div>
@@ -1475,6 +1495,10 @@ function ProjectsPanel({ projects, setProjects, entries, globalIdeas }) {
 
                 {/* Big Ideas */}
                 <BigIdeasManager project={p} onUpdate={updateProject} globalIdeas={globalIdeas}/>
+              </div>
+            </div>
+          );
+        })}
               </div>
             </div>
           );
@@ -1804,7 +1828,7 @@ function PilotTracker({ entries, projects, globalIdeas }) {
     { date:"2026-06-05", label:"🏁 Pilot Closes", sub:"Conclude testing, finalize ROI doc" },
   ];
 
-  const statusColor = { Active:T.success, "On Hold":T.warn, Complete:T.teal, Planned:T.navy };
+  const statusColor = { Active:T.success, FY26:T.purple, "On Hold":T.warn, Complete:T.teal, Planned:T.navy };
   const MEMBER_COLORS = [T.orange, T.teal, T.purple];
 
   return (
@@ -2326,6 +2350,8 @@ function ExecView({ entries, projects }) {
 
   // Health classification per project
   function healthOf(p) {
+    if (p.status === "Complete") return "completed";
+    if (p.status === "FY26")    return "fy26";
     if (p.status === "On Hold") return "hold";
     if (!p.endDate || p.endDate === "TBD") return "active";
     const dLeft = Math.round((new Date(p.endDate + "T12:00:00") - now) / (1000*60*60*24));
@@ -2335,27 +2361,54 @@ function ExecView({ entries, projects }) {
   }
 
   const HEALTH = {
-    "on-track": { label: "On Track",  color: T.success   },
-    "at-risk":  { label: "At Risk",   color: T.warn      },
-    "overdue":  { label: "Overdue",   color: "#EF4444"   },
-    "hold":     { label: "On Hold",   color: T.muted     },
-    "active":   { label: "No Date",   color: T.teal      },
+    "on-track":  { label: "On Track",        color: T.success  },
+    "at-risk":   { label: "At Risk",          color: T.warn     },
+    "overdue":   { label: "Overdue",          color: "#EF4444"  },
+    "hold":      { label: "On Hold",          color: T.muted    },
+    "active":    { label: "No Date",          color: "#0D1B2E"  },
+    "completed": { label: "Completed",        color: "#39FF14"  },
+    "fy26":      { label: "FY26 Year-Round",  color: T.purple   },
   };
 
-  const activeProjects = projects.filter(p => p.status === "Active" || p.status === "On Hold");
+  // Period date bounds — used to filter completed projects into the view
+  const periodBounds = useMemo(() => {
+    if (range === "week") return { start: getWeekStart(), end: null };
+    if (range === "lastweek") return { start: getLastWeekStart(), end: getWeekStart() };
+    if (range === "month") return { start: getMonthStart(), end: null };
+    if (range === "specificMonth" && selectedMonth) {
+      const [y,mo] = selectedMonth.split("-");
+      const lastDay = new Date(parseInt(y),parseInt(mo),0).getDate();
+      return { start:`${selectedMonth}-01`, end:`${selectedMonth}-${String(lastDay).padStart(2,"0")}` };
+    }
+    return null; // null = all time
+  }, [range, selectedMonth]);
 
-  const portfolioWithHealth = useMemo(() => activeProjects.map(p => ({
+  // All projects for scorecard: active/on-hold + FY26 (always) + completed (period-filtered)
+  const portfolioProjects = useMemo(() => {
+    const active    = projects.filter(p => p.status === "Active" || p.status === "On Hold");
+    const fy26      = projects.filter(p => p.status === "FY26");
+    const completed = projects.filter(p => {
+      if (p.status !== "Complete") return false;
+      if (!periodBounds) return true;
+      if (!p.endDate || p.endDate === "TBD") return false;
+      return p.endDate >= periodBounds.start && (!periodBounds.end || p.endDate < periodBounds.end);
+    });
+    return [...active, ...fy26, ...completed];
+  }, [projects, periodBounds]);
+
+  const portfolioWithHealth = useMemo(() => portfolioProjects.map(p => ({
     ...p,
     health: healthOf(p),
     periodHours: filtered.filter(e => e.project === p.id).reduce((s, e) => s + e.hours, 0),
     pmMember: TEAM.find(t => t.id === p.pm),
-  })), [activeProjects, filtered]);
+  })), [portfolioProjects, filtered]);
 
-  const onTrackCount  = portfolioWithHealth.filter(p => p.health === "on-track").length;
-  const atRiskCount   = portfolioWithHealth.filter(p => p.health === "at-risk").length;
-  const overdueCount  = portfolioWithHealth.filter(p => p.health === "overdue").length;
-  const datedProjects = portfolioWithHealth.filter(p => p.endDate && p.endDate !== "TBD");
-  const onTimeRate    = datedProjects.length ? Math.round((onTrackCount / datedProjects.length) * 100) : null;
+  const onTrackCount   = portfolioWithHealth.filter(p => p.health === "on-track").length;
+  const atRiskCount    = portfolioWithHealth.filter(p => p.health === "at-risk").length;
+  const overdueCount   = portfolioWithHealth.filter(p => p.health === "overdue").length;
+  const completedCount = portfolioWithHealth.filter(p => p.health === "completed").length;
+  const datedProjects  = portfolioWithHealth.filter(p => p.endDate && p.endDate !== "TBD" && p.health !== "completed");
+  const onTimeRate     = datedProjects.length ? Math.round((onTrackCount / datedProjects.length) * 100) : null;
 
   const totalPeriodHours = filtered.reduce((s, e) => s + e.hours, 0);
   const utilizationPct = periodTarget > 0 ? Math.round((totalPeriodHours / periodTarget) * 100) : 0;
@@ -2419,7 +2472,7 @@ function ExecView({ entries, projects }) {
         <div>
           <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:T.orange,marginBottom:6}}>Zumiez PMO · Executive Summary</div>
           <div style={{fontSize:22,fontWeight:800,color:T.white,letterSpacing:"-0.01em"}}>{periodLabel}</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:4}}>{TEAM.length}-person PMO team · {portfolioWithHealth.length} active projects</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:4}}>{TEAM.length}-person PMO team · {portfolioWithHealth.length - completedCount} active · {completedCount} completed</div>
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{fontSize:9.5,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>Generated</div>
@@ -2448,8 +2501,12 @@ function ExecView({ entries, projects }) {
               <div style={{fontSize:26,fontWeight:800,color:"#EF4444",lineHeight:1}}>{overdueCount}</div>
               <div style={{fontSize:9.5,color:"#EF4444",fontWeight:700,marginTop:3}}>Overdue</div>
             </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:26,fontWeight:800,color:"#39FF14",lineHeight:1}}>{completedCount}</div>
+              <div style={{fontSize:9.5,color:"#39FF14",fontWeight:700,marginTop:3}}>Done</div>
+            </div>
           </div>
-          <div style={{fontSize:11,color:T.muted}}>{portfolioWithHealth.length} active projects tracked</div>
+          <div style={{fontSize:11,color:T.muted}}>{portfolioWithHealth.length - completedCount} active · {completedCount} completed this period</div>
         </div>
 
         {/* Team Utilization */}
@@ -2457,7 +2514,7 @@ function ExecView({ entries, projects }) {
           <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:utilizationPct>=70?T.success:utilizationPct>=50?T.warn:"#EF4444"}}/>
           <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:T.muted,marginBottom:12}}>Team Utilization</div>
           <div style={{fontSize:32,fontWeight:800,color:T.navy,letterSpacing:"-0.02em",lineHeight:1}}>{utilizationPct}%</div>
-          <div style={{fontSize:11,color:T.muted,marginTop:6,marginBottom:10}}>{fmtH(totalMthHours)} of {fmtH(monthTarget)} target MTD</div>
+          <div style={{fontSize:11,color:T.muted,marginTop:6,marginBottom:10}}>{fmtH(totalPeriodHours)} of {periodTarget!=null?fmtH(periodTarget):"—"} target {periodLabel}</div>
           <div style={{height:5,background:T.cream,borderRadius:3,overflow:"hidden",border:`1px solid ${T.border}`}}>
             <div style={{width:`${Math.min(utilizationPct,100)}%`,height:"100%",background:utilizationPct>=70?T.success:utilizationPct>=50?T.warn:"#EF4444",borderRadius:3}}/>
           </div>
@@ -2487,7 +2544,7 @@ function ExecView({ entries, projects }) {
         <div style={{padding:"16px 22px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
           <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted}}>Portfolio Scorecard</div>
           <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
-            {[["On Track",T.success],["At Risk",T.warn],["Overdue","#EF4444"],["No Date",T.teal],["On Hold",T.muted]].map(([l,c])=>(
+            {[["On Track",T.success],["At Risk",T.warn],["Overdue","#EF4444"],["No Date","#0D1B2E"],["On Hold",T.muted],["Completed","#39FF14"],["FY26",T.purple]].map(([l,c])=>(
               <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10.5,color:T.muted}}>
                 <span style={{width:8,height:8,borderRadius:2,background:c,display:"inline-block"}}/>{l}
               </div>
@@ -2505,36 +2562,52 @@ function ExecView({ entries, projects }) {
             </thead>
             <tbody>
               {[...portfolioWithHealth].sort((a,b)=>{
-                const o={overdue:0,"at-risk":1,"on-track":2,active:3,hold:4};
+                const o={overdue:0,"at-risk":1,"on-track":2,active:3,hold:4,completed:5,fy26:6};
                 return (o[a.health]||5)-(o[b.health]||5);
-              }).map((p,i)=>{
+              }).map((p,i,arr)=>{
                 const h = HEALTH[p.health];
                 const priColor = p.priority==="High"?"#EF4444":p.priority==="Medium"?T.warn:T.success;
+                const isFY26 = p.health === "fy26";
+                const isFirstFY26 = isFY26 && (i===0 || arr[i-1].health !== "fy26");
                 return (
-                  <tr key={p.id} style={{borderTop:`1px solid ${T.border}`,background:i%2===0?T.white:T.cream+"55"}}>
-                    <td style={{padding:"12px 18px"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <span style={{width:8,height:8,borderRadius:2,background:p.color,flexShrink:0}}/>
-                        <span style={{fontWeight:600,color:T.text}}>{p.name}</span>
-                      </div>
-                    </td>
-                    <td style={{padding:"12px 18px",color:T.muted,fontSize:12}}>{p.pmMember?.name?.split(" ")[0]||"—"}</td>
-                    <td style={{padding:"12px 18px",textAlign:"center"}}>
-                      <span style={{padding:"2px 9px",borderRadius:99,background:priColor+"18",border:`1px solid ${priColor}44`,fontSize:10,fontWeight:700,color:priColor}}>{p.priority||"—"}</span>
-                    </td>
-                    <td style={{padding:"12px 18px",textAlign:"center"}}>
-                      {p.loeSize ? <span style={{padding:"2px 9px",borderRadius:99,background:T.teal+"18",border:`1px solid ${T.teal}44`,fontSize:10,fontWeight:700,color:T.teal}}>{p.loeSize}</span> : <span style={{color:T.muted,fontSize:11}}>—</span>}
-                    </td>
-                    <td style={{padding:"12px 18px",textAlign:"center"}}>
-                      <span style={{padding:"3px 10px",borderRadius:99,background:h.color+"18",border:`1px solid ${h.color}44`,fontSize:10.5,fontWeight:700,color:h.color}}>{h.label}</span>
-                    </td>
-                    <td style={{padding:"12px 18px",textAlign:"right",fontSize:12,color:p.health==="overdue"?"#EF4444":T.text,fontWeight:p.health==="overdue"?700:400}}>
-                      {p.endDate&&p.endDate!=="TBD" ? new Date(p.endDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "TBD"}
-                    </td>
-                    <td style={{padding:"12px 18px",textAlign:"right",fontWeight:700,color:p.periodHours>0?T.navy:T.muted}}>
-                      {p.periodHours>0 ? fmtH(p.periodHours) : "—"}
-                    </td>
-                  </tr>
+                  <Fragment key={p.id}>
+                    {/* FY26 divider row — injected before the first FY26 project */}
+                    {isFirstFY26 && (
+                      <tr>
+                        <td colSpan={7} style={{padding:0,background:`linear-gradient(90deg,${T.purple}22 0%,${T.purple}10 60%,transparent 100%)`,borderTop:`2px solid ${T.purple}60`,borderBottom:`1px solid ${T.purple}30`}}>
+                          <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 18px"}}>
+                            <div style={{width:8,height:8,borderRadius:"50%",background:T.purple,flexShrink:0}}/>
+                            <span style={{fontSize:10,fontWeight:800,letterSpacing:"0.14em",textTransform:"uppercase",color:T.purple}}>FY26 Standing Initiatives</span>
+                            <span style={{fontSize:10.5,color:T.purple+"99",fontWeight:500}}>· Run through the full fiscal year · No fixed deadline</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    <tr style={{borderTop:isFirstFY26?"none":`1px solid ${T.border}`,background:isFY26?`${T.purple}07`:i%2===0?T.white:T.cream+"55"}}>
+                      <td style={{padding:"12px 18px"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{width:8,height:8,borderRadius:2,background:p.color,flexShrink:0}}/>
+                          <span style={{fontWeight:600,color:T.text}}>{p.name}</span>
+                        </div>
+                      </td>
+                      <td style={{padding:"12px 18px",color:T.muted,fontSize:12}}>{p.pmMember?.name?.split(" ")[0]||"—"}</td>
+                      <td style={{padding:"12px 18px",textAlign:"center"}}>
+                        <span style={{padding:"2px 9px",borderRadius:99,background:priColor+"18",border:`1px solid ${priColor}44`,fontSize:10,fontWeight:700,color:priColor}}>{p.priority||"—"}</span>
+                      </td>
+                      <td style={{padding:"12px 18px",textAlign:"center"}}>
+                        {p.loeSize ? <span style={{padding:"2px 9px",borderRadius:99,background:T.teal+"18",border:`1px solid ${T.teal}44`,fontSize:10,fontWeight:700,color:T.teal}}>{p.loeSize}</span> : <span style={{color:T.muted,fontSize:11}}>—</span>}
+                      </td>
+                      <td style={{padding:"12px 18px",textAlign:"center"}}>
+                        <span style={{padding:"3px 10px",borderRadius:99,background:h.color+"18",border:`1px solid ${h.color}44`,fontSize:10.5,fontWeight:700,color:h.color}}>{h.label}</span>
+                      </td>
+                      <td style={{padding:"12px 18px",textAlign:"right",fontSize:12,color:isFY26?T.muted:p.health==="overdue"?"#EF4444":T.text,fontWeight:p.health==="overdue"?700:400}}>
+                        {isFY26 ? "Full Year" : p.endDate&&p.endDate!=="TBD" ? new Date(p.endDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "TBD"}
+                      </td>
+                      <td style={{padding:"12px 18px",textAlign:"right",fontWeight:700,color:p.periodHours>0?isFY26?T.purple:T.navy:T.muted}}>
+                        {p.periodHours>0 ? fmtH(p.periodHours) : "—"}
+                      </td>
+                    </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -2567,7 +2640,7 @@ function ExecView({ entries, projects }) {
         <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"22px 20px 16px"}}>
           <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted,marginBottom:4}}>Where Time Goes</div>
           <div style={{fontSize:11.5,color:T.muted,marginBottom:16}}>Project delivery vs. overhead vs. team development</div>
-          {totalMthHours>0 ? (
+          {totalPeriodHours>0 ? (
             <div style={{display:"flex",gap:20,alignItems:"center"}}>
               <ResponsiveContainer width={120} height={120}>
                 <PieChart>
@@ -2579,7 +2652,7 @@ function ExecView({ entries, projects }) {
               </ResponsiveContainer>
               <div style={{display:"grid",gap:10,flex:1}}>
                 {categoryData.map(d => {
-                  const pct = Math.round((d.hours/totalMthHours)*100);
+                  const pct = Math.round((d.hours/totalPeriodHours)*100);
                   return (
                     <div key={d.name}>
                       <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
@@ -2763,7 +2836,7 @@ const TABS = [
   {id:"bigideas",label:"Big Ideas",icon:"💡"},
   {id:"capacity",label:"Capacity",icon:"⚡"},
   {id:"exec",label:"Exec View",icon:"📊"},
-  {id:"whatsnew",label:"What's New",icon:"★"},
+  {id:"whatsnew",label:"Release Notes",icon:"★"},
 ];
 
 export default function App() {
@@ -2901,9 +2974,9 @@ export default function App() {
           });
         }
 
-        // Default: all project changes accepted
+        // Default: new projects accepted, changed projects rejected (protect local edits)
         const defaultSelections = {};
-        projectChanges.forEach(c => { defaultSelections[c.project.id] = true; });
+        projectChanges.forEach(c => { defaultSelections[c.project.id] = c.type === "new"; });
         setMergeProjectSelections(defaultSelections);
         setMergePreview({ toAdd, skipped, persons, name: memberNames,
           dateMin: dates[0], dateMax: dates[dates.length-1], projectChanges });
@@ -3155,8 +3228,11 @@ export default function App() {
             {/* Project changes */}
             {mergePreview.projectChanges.length > 0 && (
               <div style={{marginBottom:16}}>
-                <div style={{fontSize:12,fontWeight:800,color:T.navy,marginBottom:8}}>
-                  Project Changes ({mergePreview.projectChanges.length}) — toggle to accept or skip
+                <div style={{fontSize:12,fontWeight:800,color:T.navy,marginBottom:4}}>
+                  Project Changes ({mergePreview.projectChanges.length})
+                </div>
+                <div style={{fontSize:11,color:T.muted,marginBottom:8,background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:7,padding:"7px 10px"}}>
+                  ⚠️ <strong style={{color:"#92400E"}}>New projects</strong> are pre-checked. <strong style={{color:"#92400E"}}>Updated projects</strong> are unchecked by default — your local edits are protected. Toggle to override.
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:220,overflowY:"auto"}}>
                   {mergePreview.projectChanges.map(c => (

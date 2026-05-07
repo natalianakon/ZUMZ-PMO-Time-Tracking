@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-05-07
+
+- **Release Notes tab** — Renamed "What's New" tab to "Release Notes"
+- **Exec View — period filter bug fix** — Fixed white screen crash caused by stale `totalMthHours` / `monthTarget` variable references after period filter refactor
+- **Projects tab — status sections** — Projects now grouped into labeled sections: Active, FY26 — Year-Round, On Hold, Planned, Completed (with colored dot + project count per section)
+- **Projects tab — completed cards** — Completed projects now show "✓ Complete" (teal) instead of "Xd overdue"; progress bar fills 100% teal
+- **Exec View — completed projects** — Completed projects whose endDate falls within selected period now appear in Portfolio Scorecard with neon green "Completed" badge; sorted after active projects
+- **Exec View — FY26 status** — New "FY26" project status added; FY26 projects appear in scorecard below a purple gradient divider row ("FY26 STANDING INITIATIVES · Run through the full fiscal year"); End Date shows "Full Year"; hours shown in purple
+- **Exec View — color updates** — Completed = neon green `#39FF14`; No Date = near-black `#0D1B2E`; FY26 = purple `#8B5CF6`
+- **All Entries — Big Ideas in edit** — Edit form now shows all global ideas (was incorrectly filtering to project-linked only)
+- **Exec View — React.Fragment fix** — Fixed white screen crash caused by `React.Fragment` usage without React in scope; replaced with named `Fragment` import
+- **Merge Team Data — project change defaults** — Changed projects now default to unchecked (protects local edits); new projects still default to accepted; added warning banner in merge modal explaining the behavior
+- **Backup** — 4-file backup saved: JSX, JSON, CLAUDE, LOG (2026-05-07)
+
+---
+
 ## 2026-05-06
 
 - **What's New tab** — New `★ What's New` tab added with full versioned changelog (v1.0 pilot launch + v2.0 major release)

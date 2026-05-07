@@ -1,7 +1,97 @@
 {
   "version": "1.0",
-  "savedAt": "2026-05-06T20:12:44.753Z",
+  "savedAt": "2026-05-07T21:49:49.572Z",
   "entries": [
+    {
+      "person": "natalia",
+      "date": "2026-05-08",
+      "project": "teobb2",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "mp4fwr"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-05-08",
+      "project": "s5g4px",
+      "workType": "Project Work",
+      "bigIdea": "7fz9fv",
+      "hours": 3,
+      "notes": "Helping Andy + Manny with some Buyer Brand Workbook VBA Code & Additional Capabilities (Consider it a passion project)",
+      "id": "psxjt6"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-05-07",
+      "project": "teobb2",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "",
+      "id": "nyor29"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-05-07",
+      "project": "xtwsld",
+      "workType": "Personal Development",
+      "bigIdea": "",
+      "hours": 3,
+      "notes": "Github + Sharepoint Updates",
+      "id": "rprmbf"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-05-06",
+      "project": "xtwsld",
+      "workType": "Admin / Other",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "Getting  Fluent War Room Into a templatized version and saved into Github",
+      "id": "bwbjdc"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-05-06",
+      "project": "teobb2",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "",
+      "id": "t3mn3n"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-05-06",
+      "project": "1ua0rk",
+      "workType": "Meetings",
+      "bigIdea": "",
+      "hours": 1,
+      "notes": "",
+      "id": "y4oi6j"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-05-05",
+      "project": "teobb2",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "",
+      "id": "7o3epe"
+    },
+    {
+      "person": "natalia",
+      "date": "2026-05-05",
+      "project": "1ua0rk",
+      "workType": "Project Work",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "",
+      "id": "7tvlsp"
+    },
     {
       "person": "natalia",
       "date": "2026-04-27",
@@ -973,6 +1063,72 @@
       "hours": 1.5,
       "notes": "Focusing on setting up Runge with the materials he needs to sort out and gather from the respective leads within the team to then collaborate back with PMO manager to begin creating the necessary projects to support this initiative",
       "id": "qrzt84"
+    },
+    {
+      "person": "member3",
+      "date": "2026-05-04",
+      "project": "xtwsld",
+      "workType": "Personal Development",
+      "bigIdea": "",
+      "hours": 0.5,
+      "notes": "",
+      "id": "h62496",
+      "weekEntry": true
+    },
+    {
+      "person": "member3",
+      "date": "2026-05-04",
+      "project": "dcdy5m",
+      "workType": "Intake",
+      "bigIdea": "",
+      "hours": 2,
+      "notes": "Collaborating with Delivery and sharing the work that has been done in the past with my previous company as an example of Net New requests.",
+      "id": "lchefg",
+      "weekEntry": true
+    },
+    {
+      "person": "member3",
+      "date": "2026-05-04",
+      "project": "xtwsld",
+      "workType": "Meetings",
+      "bigIdea": "",
+      "hours": 3.75,
+      "notes": "",
+      "id": "wxg7hj",
+      "weekEntry": true
+    },
+    {
+      "person": "member3",
+      "date": "2026-05-04",
+      "project": "xow9de",
+      "workType": "Stakeholder Communication",
+      "bigIdea": "",
+      "hours": 1.5,
+      "notes": "",
+      "id": "nlggce",
+      "weekEntry": true
+    },
+    {
+      "person": "member3",
+      "date": "2026-05-04",
+      "project": "xow9de",
+      "workType": "Big Idea Planning",
+      "bigIdea": "xhn2ip",
+      "hours": 12,
+      "notes": "",
+      "id": "om3u6p",
+      "weekEntry": true
+    },
+    {
+      "person": "member3",
+      "date": "2026-05-04",
+      "project": "xow9de",
+      "workType": "Meetings",
+      "bigIdea": "xhn2ip",
+      "hours": 4,
+      "notes": "",
+      "id": "n5zmis",
+      "weekEntry": true
     }
   ],
   "projects": [
@@ -997,13 +1153,14 @@
       "status": "Active",
       "pm": "natalia",
       "startDate": "2026-03-03",
-      "endDate": "TBD",
+      "endDate": "2026-05-06",
       "description": "",
       "priority": "High",
       "sponsor": "Greg Zeck",
       "id": "1ua0rk",
       "bigIdeas": [],
-      "estimatedHours": "4"
+      "estimatedHours": "50",
+      "loeSize": "M"
     },
     {
       "name": "Customer Consent - DSAR",
@@ -1098,12 +1255,13 @@
       "sponsor": "Stuart Martin",
       "id": "xow9de",
       "bigIdeas": [],
-      "estimatedHours": ""
+      "estimatedHours": "",
+      "loeSize": ""
     },
     {
       "name": "PMO Admin + Development",
       "color": "#1E3A52",
-      "status": "Active",
+      "status": "FY26",
       "pm": "",
       "startDate": "",
       "endDate": "",
@@ -1111,12 +1269,14 @@
       "priority": "Medium",
       "sponsor": "",
       "id": "xtwsld",
-      "bigIdeas": []
+      "bigIdeas": [],
+      "estimatedHours": "",
+      "loeSize": ""
     },
     {
       "name": "N/A - Intake/Ideation",
       "color": "#EC4899",
-      "status": "Active",
+      "status": "FY26",
       "pm": "member3",
       "startDate": "2026-05-01",
       "endDate": "TBD",
@@ -1125,7 +1285,8 @@
       "sponsor": "Paul Kisicki",
       "estimatedHours": "",
       "id": "s5g4px",
-      "bigIdeas": []
+      "bigIdeas": [],
+      "loeSize": ""
     },
     {
       "name": "Platform x App",
@@ -1167,12 +1328,13 @@
       "sponsor": "",
       "estimatedHours": "",
       "id": "eoqkew",
-      "bigIdeas": []
+      "bigIdeas": [],
+      "loeSize": ""
     },
     {
       "name": "IT Admin Work",
       "color": "#E8A020",
-      "status": "Active",
+      "status": "FY26",
       "pm": "member3",
       "startDate": "2026-02-02",
       "endDate": "TBD",
@@ -1181,7 +1343,8 @@
       "sponsor": "Paul Kisicki",
       "estimatedHours": "",
       "id": "dcdy5m",
-      "bigIdeas": []
+      "bigIdeas": [],
+      "loeSize": ""
     }
   ],
   "globalIdeas": [
