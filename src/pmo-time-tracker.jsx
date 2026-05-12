@@ -33,6 +33,25 @@ const LOE_LABELS = { XS:"< 1 week", S:"1-2 weeks", M:"2-6 weeks", L:"1-3 months"
 
 const CHANGELOG = [
   {
+    version: "2.1", date: "May 2026", tag: "Update", tagColor: T.purple, released: null,
+    whatsNew: [
+      { title: "Project Spotlight on Dashboard", desc: "Pick any project from the Dashboard to instantly see total hours, period hours, breakdown by person, and breakdown by work type — no tab-switching needed." },
+      { title: "FY26 Year-Round project status", desc: "New 'FY26' status for always-on initiatives (PMO Admin, Intake/Ideation, IT Admin Work). In the Exec View, these appear below a purple divider row clearly labeled 'FY26 Standing Initiatives · Run through the full fiscal year.'" },
+      { title: "Project sections in Projects tab", desc: "Projects are now grouped into labeled sections — Active, FY26 Year-Round, On Hold, Planned, and Completed — with colored dot headers and project counts." },
+      { title: "Exec View period filter", desc: "Exec View now has the same period selector as the Dashboard: This Week, Last Week, Month to Date, All Time, or pick any specific month." },
+      { title: "Completed projects in Exec View scorecard", desc: "Projects completed within the selected period now appear at the bottom of the Portfolio Scorecard with a neon green 'Completed' badge." },
+      { title: "Capacity by Project on Dashboard", desc: "New panel breaks down hours by project against a 70%/30% target split (project work vs. admin/FY26). Shows each project's share of productive capacity with a relative bar so you can see where time is actually going." },
+    ],
+    improvements: [
+      { title: "Merge Team Data protects your edits", desc: "When merging a teammate's data, changed projects now default to unchecked — so your local updates (FY26 status, LOE sizes, etc.) are never accidentally overwritten." },
+      { title: "Completed project cards fixed", desc: "Completed projects now show '✓ Complete' in teal instead of an 'overdue' warning. Progress bar fills to 100%." },
+      { title: "Big Ideas show in entry edit", desc: "Editing a time entry now shows all global Big Ideas in the dropdown — previously it was incorrectly filtering to project-linked ideas only." },
+      { title: "Exec View FY26 divider row", desc: "FY26 initiatives get a full-width purple gradient divider in the scorecard — 'Full Year' in the end date column, hours in purple." },
+      { title: "Release Notes tab renamed", desc: "The 'What's New' tab is now called 'Release Notes' — more professional and easier to find." },
+    ],
+    removed: [],
+  },
+  {
     version: "2.0", date: "May 2026", tag: "Major Release", tagColor: T.orange, released: null,
     whatsNew: [
       { title: "Quick Log on Dashboard", desc: "Log time without switching tabs — inline form with quick-pick hour buttons (0.5h–4h) right on the Dashboard." },
@@ -186,6 +205,7 @@ function Dashboard({ entries, projects, globalIdeas, setEntries }) {
   const [showDigest, setShowDigest] = useState(false);
   const [showQL, setShowQL] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [spotlightId, setSpotlightId] = useState("");
   const [qlForm, setQlForm] = useState({ person:"natalia", date:today(), project:"", workType:"", hours:"", notes:"" });
   const [qlErrors, setQlErrors] = useState({});
   const [qlFlash, setQlFlash] = useState(false);
@@ -281,6 +301,16 @@ function Dashboard({ entries, projects, globalIdeas, setEntries }) {
     return null;
   }, [range, selectedMonth]);
   const perPersonTarget = periodTarget != null ? periodTarget / TEAM.length : null;
+
+  const periodLabel = useMemo(() => {
+    if (range === "week") return "This Week";
+    if (range === "lastweek") return "Last Week";
+    if (range === "specificMonth" && selectedMonth) {
+      const [y,mo] = selectedMonth.split("-");
+      return new Date(parseInt(y),parseInt(mo)-1,1).toLocaleDateString("en-US",{month:"long",year:"numeric"});
+    }
+    return new Date().toLocaleDateString("en-US",{month:"long",year:"numeric"}) + " (MTD)";
+  }, [range, selectedMonth]);
 
   // ── At-risk projects ───────────────────────────────────────────────────────
   const atRisk = projects.filter(p => {
@@ -588,6 +618,91 @@ function Dashboard({ entries, projects, globalIdeas, setEntries }) {
           ) : <div style={{padding:"40px 0",textAlign:"center",color:T.muted,fontSize:13}}>No data yet.</div>}
         </div>
       </div>
+      {/* ── Capacity by Project ── */}
+      {(() => {
+        const projTarget = periodTarget ? Math.round(periodTarget * 0.7) : null;
+        const adminTarget = periodTarget ? Math.round(periodTarget * 0.3) : null;
+        const byProjFull = projects
+          .map(p => ({ ...p, hours: filtered.filter(e => e.project === p.id).reduce((s,e) => s+e.hours, 0) }))
+          .filter(p => p.hours > 0)
+          .sort((a,b) => b.hours - a.hours);
+        const projectWork = byProjFull.filter(p => p.status !== "FY26");
+        const fy26Work    = byProjFull.filter(p => p.status === "FY26");
+        const maxH = byProjFull.length ? byProjFull[0].hours : 1;
+        if (!byProjFull.length) return null;
+        return (
+          <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,overflow:"hidden"}}>
+            <div style={{padding:"14px 22px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+              <div>
+                <div style={{fontSize:11,fontWeight:800,letterSpacing:"0.08em",textTransform:"uppercase",color:T.muted}}>Capacity by Project</div>
+                <div style={{fontSize:11,color:T.muted,marginTop:2}}>How team hours are distributed this period</div>
+              </div>
+              {periodTarget && (
+                <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                  <div style={{fontSize:11,color:T.muted}}><span style={{fontWeight:700,color:T.success}}>70% target</span> = {fmtH(projTarget)} project work</div>
+                  <div style={{fontSize:11,color:T.muted}}><span style={{fontWeight:700,color:T.warn}}>30% target</span> = {fmtH(adminTarget)} admin/other</div>
+                  <div style={{fontSize:11,color:T.muted}}>Total capacity: <span style={{fontWeight:700,color:T.navy}}>{fmtH(periodTarget)}</span></div>
+                </div>
+              )}
+            </div>
+            <div style={{padding:"16px 22px",display:"grid",gap:10}}>
+              {projectWork.length > 0 && (<>
+                <div style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:T.success,marginBottom:2}}>Project Work</div>
+                {projectWork.map(p => {
+                  const capPct  = periodTarget ? Math.round((p.hours/periodTarget)*100) : null;
+                  const projPct = projTarget   ? Math.round((p.hours/projTarget)*100)   : null;
+                  return (
+                    <div key={p.id}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:5}}>
+                        <div style={{width:9,height:9,borderRadius:2,background:p.color,flexShrink:0}}/>
+                        <span style={{fontSize:12.5,fontWeight:600,color:T.text,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</span>
+                        <span style={{fontSize:12,color:T.muted,flexShrink:0}}>{fmtH(p.hours)}</span>
+                        {capPct!==null&&<span style={{fontSize:12,fontWeight:700,color:p.color,flexShrink:0,minWidth:52,textAlign:"right"}}>{capPct}% cap</span>}
+                        {projPct!==null&&<span style={{fontSize:11,color:T.muted,flexShrink:0,minWidth:60,textAlign:"right"}}>{projPct}% of 70%</span>}
+                      </div>
+                      <div style={{height:6,background:T.cream,borderRadius:3,overflow:"hidden",border:`1px solid ${T.border}`}}>
+                        <div style={{width:`${Math.min(100,Math.round((p.hours/maxH)*100))}%`,height:"100%",background:p.color,borderRadius:3}}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>)}
+              {fy26Work.length > 0 && (<>
+                <div style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:T.purple,marginTop:6,marginBottom:2}}>FY26 Year-Round</div>
+                {fy26Work.map(p => {
+                  const capPct = periodTarget ? Math.round((p.hours/periodTarget)*100) : null;
+                  return (
+                    <div key={p.id}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:5}}>
+                        <div style={{width:9,height:9,borderRadius:2,background:T.purple,flexShrink:0}}/>
+                        <span style={{fontSize:12.5,fontWeight:600,color:T.text,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</span>
+                        <span style={{fontSize:12,color:T.muted,flexShrink:0}}>{fmtH(p.hours)}</span>
+                        {capPct!==null&&<span style={{fontSize:12,fontWeight:700,color:T.purple,flexShrink:0,minWidth:52,textAlign:"right"}}>{capPct}% cap</span>}
+                      </div>
+                      <div style={{height:6,background:T.cream,borderRadius:3,overflow:"hidden",border:`1px solid ${T.border}`}}>
+                        <div style={{width:`${Math.min(100,Math.round((p.hours/maxH)*100))}%`,height:"100%",background:T.purple,borderRadius:3}}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>)}
+              {periodTarget && (
+                <div style={{marginTop:8,paddingTop:12,borderTop:`1px solid ${T.border}`,display:"flex",gap:24,flexWrap:"wrap"}}>
+                  <div style={{fontSize:11,color:T.muted}}>
+                    <span style={{fontWeight:700,color:T.success}}>Project work: </span>
+                    {fmtH(projectWork.reduce((s,p)=>s+p.hours,0))} / {fmtH(projTarget)} target · {projTarget?Math.round((projectWork.reduce((s,p)=>s+p.hours,0)/projTarget)*100):0}%
+                  </div>
+                  <div style={{fontSize:11,color:T.muted}}>
+                    <span style={{fontWeight:700,color:T.purple}}>FY26 / admin: </span>
+                    {fmtH(fy26Work.reduce((s,p)=>s+p.hours,0))} / {fmtH(adminTarget)} target · {adminTarget?Math.round((fy26Work.reduce((s,p)=>s+p.hours,0)/adminTarget)*100):0}%
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,overflow:"hidden"}}>
         <div style={{padding:"16px 22px",borderBottom:`1px solid ${T.border}`,fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.muted}}>Recent Activity</div>
         {recent.map((e,i) => {
@@ -612,6 +727,108 @@ function Dashboard({ entries, projects, globalIdeas, setEntries }) {
         })}
         {recent.length===0&&<div style={{padding:"40px",textAlign:"center",color:T.muted,fontSize:13}}>No entries for this period.</div>}
       </div>
+
+      {/* ── Project Spotlight ── */}
+      {(() => {
+        const sp = spotlightId ? projects.find(p => p.id === spotlightId) : null;
+        const spAll    = sp ? entries.filter(e => e.project === sp.id) : [];
+        const spPeriod = sp ? filtered.filter(e => e.project === sp.id) : [];
+        const spTotalH = spAll.reduce((s,e) => s+e.hours, 0);
+        const spPeriodH = spPeriod.reduce((s,e) => s+e.hours, 0);
+        const spDates  = spAll.map(e=>e.date).sort();
+        const spByPerson = TEAM.map(t => ({ ...t, hours: spAll.filter(e=>e.person===t.id).reduce((s,e)=>s+e.hours,0) })).filter(t=>t.hours>0);
+        const spByType = WORK_TYPES.map(wt => ({ name:wt, hours: spAll.filter(e=>e.workType===wt).reduce((s,e)=>s+e.hours,0) })).filter(t=>t.hours>0);
+        const spPM = sp?.pm ? TEAM.find(t=>t.id===sp.pm) : null;
+        const maxTypeH = spByType.length ? Math.max(...spByType.map(t=>t.hours)) : 1;
+        return (
+          <div style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:12,overflow:"hidden"}}>
+            {/* Header with picker */}
+            <div style={{padding:"14px 22px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap",background:sp?`${sp.color}0a`:T.white}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                {sp && <div style={{width:10,height:10,borderRadius:3,background:sp.color,flexShrink:0}}/>}
+                <span style={{fontSize:11,fontWeight:800,letterSpacing:"0.08em",textTransform:"uppercase",color:T.muted}}>🔍 Project Spotlight</span>
+              </div>
+              <select value={spotlightId} onChange={e=>setSpotlightId(e.target.value)}
+                style={{padding:"7px 14px",borderRadius:8,border:`1.5px solid ${sp?sp.color:T.border}`,background:"white",color:T.navy,fontSize:12.5,fontWeight:600,cursor:"pointer",outline:"none",minWidth:220}}>
+                <option value="">— Pick a project —</option>
+                {[...projects].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>(
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {!sp && (
+              <div style={{padding:"32px",textAlign:"center",color:T.muted,fontSize:13}}>Select a project above to see its stats.</div>
+            )}
+
+            {sp && (
+              <div style={{padding:"20px 22px",display:"grid",gap:18}}>
+                {/* KPI row */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+                  {[
+                    {label:"Total Hours",      value:fmtH(spTotalH),       sub:`${spAll.length} entries · all time`,  color:sp.color},
+                    {label:`Hours (${periodLabel})`, value:fmtH(spPeriodH), sub:`${spPeriod.length} entries this period`, color:T.teal},
+                    {label:"Date Range",       value:spDates.length ? new Date(spDates[0]+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "—",
+                                              sub:spDates.length>1?`→ ${new Date(spDates[spDates.length-1]+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`:"Only one date",
+                                              color:T.navy},
+                    {label:"Project Manager",  value:spPM?.name.split(" ")[0]||"—", sub:sp.sponsor?`Sponsor: ${sp.sponsor}`:"No sponsor set", color:spPM?.color||T.muted},
+                  ].map(tile=>(
+                    <div key={tile.label} style={{background:T.cream,borderRadius:10,padding:"14px 16px",borderLeft:`3px solid ${tile.color}`}}>
+                      <div style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:T.muted,marginBottom:6}}>{tile.label}</div>
+                      <div style={{fontSize:22,fontWeight:800,color:tile.color,lineHeight:1,marginBottom:4}}>{tile.value}</div>
+                      <div style={{fontSize:10.5,color:T.muted}}>{tile.sub}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* By person + by work type */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                  {/* By person */}
+                  <div>
+                    <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:T.muted,marginBottom:10}}>Hours by Person</div>
+                    {spByPerson.length===0 ? <div style={{fontSize:12,color:T.muted,fontStyle:"italic"}}>No entries yet</div> : (
+                      <div style={{display:"grid",gap:8}}>
+                        {spByPerson.map(t=>(
+                          <div key={t.id}>
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                              <div style={{width:24,height:24,borderRadius:"50%",background:t.color+"33",border:`2px solid ${t.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:t.color,flexShrink:0}}>{t.name[0]}</div>
+                              <span style={{fontSize:12.5,fontWeight:600,color:T.text,flex:1}}>{t.name.split(" ")[0]}</span>
+                              <span style={{fontSize:12.5,fontWeight:700,color:T.navy}}>{fmtH(t.hours)}</span>
+                            </div>
+                            <div style={{height:5,background:T.border,borderRadius:3,overflow:"hidden"}}>
+                              <div style={{width:`${Math.round((t.hours/spTotalH)*100)}%`,height:"100%",background:t.color,borderRadius:3}}/>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* By work type */}
+                  <div>
+                    <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:T.muted,marginBottom:10}}>Hours by Work Type</div>
+                    {spByType.length===0 ? <div style={{fontSize:12,color:T.muted,fontStyle:"italic"}}>No entries yet</div> : (
+                      <div style={{display:"grid",gap:7}}>
+                        {spByType.sort((a,b)=>b.hours-a.hours).map(t=>(
+                          <div key={t.name}>
+                            <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                              <span style={{fontSize:11.5,color:T.text}}>{t.name}</span>
+                              <span style={{fontSize:11.5,fontWeight:700,color:T.navy}}>{fmtH(t.hours)}</span>
+                            </div>
+                            <div style={{height:4,background:T.border,borderRadius:3,overflow:"hidden"}}>
+                              <div style={{width:`${Math.round((t.hours/maxTypeH)*100)}%`,height:"100%",background:sp.color,borderRadius:3}}/>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Period Summary Modal ── */}
       {showSummary && (
