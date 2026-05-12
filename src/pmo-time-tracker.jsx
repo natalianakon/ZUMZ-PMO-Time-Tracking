@@ -33,7 +33,7 @@ const LOE_LABELS = { XS:"< 1 week", S:"1-2 weeks", M:"2-6 weeks", L:"1-3 months"
 
 const CHANGELOG = [
   {
-    version: "2.1", date: "May 2026", tag: "Update", tagColor: T.purple, released: null,
+    version: "2.1", date: "May 2026", tag: "Update", tagColor: T.purple, released: "May 12, 2026",
     whatsNew: [
       { title: "Project Spotlight on Dashboard", desc: "Pick any project from the Dashboard to instantly see total hours, period hours, breakdown by person, and breakdown by work type — no tab-switching needed." },
       { title: "FY26 Year-Round project status", desc: "New 'FY26' status for always-on initiatives (PMO Admin, Intake/Ideation, IT Admin Work). In the Exec View, these appear below a purple divider row clearly labeled 'FY26 Standing Initiatives · Run through the full fiscal year.'" },
